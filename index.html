@@ -263,13 +263,17 @@ function renderVideos() {
         }
       }
       var speakingThis = TTS.videoId === v.id;
+      function ttsLabel(lg, icon) {
+        if (speakingThis && TTS.lang === lg) return TTS.loading ? "⏳ Ładuję…" : "⏹ Stop";
+        return icon;
+      }
       h += "</ul></div>" +
         '<div class="vactions">' +
         '<button class="tts' + (speakingThis && TTS.lang === "pl" ? " playing" : "") + '" data-act="say" data-id="' + v.id + '" data-lang="pl">' +
-        (speakingThis && TTS.lang === "pl" ? "⏹ Stop" : "🔊 PL") + "</button>" +
+        ttsLabel("pl", "🔊 PL") + "</button>" +
         (bilingual
           ? '<button class="tts' + (speakingThis && TTS.lang === "en" ? " playing" : "") + '" data-act="say" data-id="' + v.id + '" data-lang="en">' +
-            (speakingThis && TTS.lang === "en" ? "⏹ Stop" : "🔊 EN") + "</button>"
+            ttsLabel("en", "🔊 EN") + "</button>"
           : "") +
         '<a class="link" target="_blank" rel="noreferrer" href="https://www.youtube.com/watch?v=' + esc(v.videoId) + '">Otwórz w YT ↗</a>' +
         "</div>";
@@ -293,39 +297,42 @@ function renderSettings() {
     '<p class="hint">Worker odpowiada za: znajdowanie ID kanału, sprawdzanie nowych filmów (RSS) i generowanie streszczeń z transkrypcji przez API Anthropic.</p>' +
     "</div>";
 
-  // ——— wybór głosu lektora ———
-  var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  // ——— lektor ———
+  var engines = [["openai", "Naturalny (OpenAI)"], ["system", "Systemowy (darmowy)"]];
   h += '<div class="form">' +
-    '<p class="hint" style="margin:0 0 8px">Głos lektora — wybierz i przetestuj. Jeśli lista jest pusta, kliknij „Odśwież listę".</p>';
-
-  var langs = [["pl", "Polski"], ["en", "Angielski"]];
-  for (var L = 0; L < langs.length; L++) {
-    var pref = langs[L][0];
-    var opts = [];
-    for (var i = 0; i < voices.length; i++) {
-      if (voices[i].lang && voices[i].lang.toLowerCase().indexOf(pref) === 0) opts.push(voices[i]);
-    }
-    h += '<p class="hint" style="margin:10px 0 4px"><b>' + langs[L][1] + "</b> (" + opts.length + " dostępnych)</p>";
-    if (opts.length === 0) {
-      h += '<p class="hint" style="margin:0 0 6px">Brak głosów dla tego języka.</p>';
-    } else {
-      h += '<select id="voice-' + pref + '">';
-      h += '<option value="">— automatycznie (najlepszy) —</option>';
-      for (i = 0; i < opts.length; i++) {
-        var sel = S.voice && S.voice[pref] === opts[i].name ? " selected" : "";
-        h += '<option value="' + esc(opts[i].name) + '"' + sel + ">" +
-          esc(opts[i].name) + " · " + esc(opts[i].lang) + (opts[i].localService ? "" : " · sieciowy") + "</option>";
-      }
-      h += "</select>" +
-        '<div class="row" style="margin-bottom:6px">' +
-        '<button class="small" data-act="saveVoice" data-id="' + pref + '">Zapisz</button>' +
-        '<button class="btn2" data-act="testVoice" data-id="' + pref + '">▶ Test</button>' +
-        "</div>";
-    }
+    '<p class="hint" style="margin:0 0 8px"><b>Lektor</b></p>' +
+    '<div class="langbar" style="margin-bottom:10px">';
+  for (var E = 0; E < engines.length; E++) {
+    var cur = (S.ttsEngine || "openai") === engines[E][0];
+    h += '<button class="langbtn' + (cur ? " active" : "") + '" data-act="engine" data-id="' + engines[E][0] + '">' +
+      engines[E][1] + "</button>";
   }
-  h += '<button class="btn2" data-act="reloadVoices" style="margin-top:6px">Odśwież listę głosów</button>' +
-    '<p class="hint">Wskazówka: głosy z dopiskiem Premium / Enhanced / Ulepszony brzmią najbardziej naturalnie. Na iPhonie pobierz je w Ustawienia → Dostępność → Zawartość mówiona → Głosy.</p>' +
-    "</div>";
+  h += "</div>";
+
+  if ((S.ttsEngine || "openai") === "openai") {
+    var voices = [
+      ["nova", "Nova — ciepły kobiecy"],
+      ["shimmer", "Shimmer — łagodny kobiecy"],
+      ["alloy", "Alloy — neutralny"],
+      ["echo", "Echo — spokojny męski"],
+      ["onyx", "Onyx — głęboki męski"],
+      ["fable", "Fable — narracyjny"],
+    ];
+    h += "<select id=\"oa-voice\">";
+    for (var V = 0; V < voices.length; V++) {
+      var s2 = (S.ttsVoice || "nova") === voices[V][0] ? " selected" : "";
+      h += '<option value="' + voices[V][0] + '"' + s2 + ">" + esc(voices[V][1]) + "</option>";
+    }
+    h += "</select>" +
+      '<div class="row" style="margin-bottom:6px">' +
+      '<button class="small" data-act="saveOaVoice">Zapisz</button>' +
+      '<button class="btn2" data-act="testOaVoice">▶ Test</button>' +
+      "</div>" +
+      '<p class="hint">Wymaga sekretu OPENAI_API_KEY w Workerze. Koszt ok. 15–20 gr za przeczytanie jednego streszczenia.</p>';
+  } else {
+    h += '<p class="hint">Głos wbudowany w telefon — darmowy, ale na iPhone brzmi robotycznie (Safari udostępnia tylko archaiczne głosy Apple).</p>';
+  }
+  h += "</div>";
   return h;
 }
 
@@ -508,33 +515,12 @@ document.addEventListener("click", function (ev) {
     if (fv) { fv.collapsed = !fv.collapsed; save(); render(); }
   }
   else if (act === "say") { speakVideo(id, t.getAttribute("data-lang")); }
-  else if (act === "saveVoice") {
-    var sel = document.getElementById("voice-" + id);
-    if (!S.voice) S.voice = {};
-    S.voice[id] = sel.value || null;
-    save();
-    showErr(null);
-    render();
+  else if (act === "engine") { S.ttsEngine = id; save(); render(); }
+  else if (act === "saveOaVoice") {
+    S.ttsVoice = document.getElementById("oa-voice").value;
+    save(); showErr(null); render();
   }
-  else if (act === "testVoice") {
-    var selT = document.getElementById("voice-" + id);
-    var name = selT.value;
-    var vs = window.speechSynthesis.getVoices();
-    var chosen = null;
-    for (i = 0; i < vs.length; i++) if (vs[i].name === name) chosen = vs[i];
-    if (!chosen) chosen = pickBestVoice(vs, id);
-    window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(
-      id === "pl"
-        ? "Test głosu. Bitcoin wzrósł o dwanaście procent w tym tygodniu."
-        : "Voice test. Bitcoin rose twelve percent this week."
-    );
-    u.lang = id === "pl" ? "pl-PL" : "en-US";
-    if (chosen) u.voice = chosen;
-    u.rate = 0.97;
-    window.speechSynthesis.speak(u);
-  }
-  else if (act === "reloadVoices") { render(); }
+  else if (act === "testOaVoice") { testOaVoice(); }
   else if (act === "saveWorker") {
     S.workerUrl = document.getElementById("f-worker").value.trim();
     save(); showErr(null); tab = "kanaly"; render();
@@ -542,14 +528,19 @@ document.addEventListener("click", function (ev) {
 });
 
 // ================= LEKTOR (syntezator mowy w telefonie) =================
-var TTS = { videoId: null, lang: null };
+var TTS = { videoId: null, lang: null, audio: null, loading: false };
 
 function stopSpeak() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
+  if (TTS.audio) {
+    try { TTS.audio.pause(); TTS.audio.currentTime = 0; } catch (e) {}
+    TTS.audio = null;
+  }
   var el = document.querySelector(".digest li.speaking");
   if (el) el.classList.remove("speaking");
   TTS.videoId = null;
   TTS.lang = null;
+  TTS.loading = false;
 }
 
 // wybiera najlepszy dostępny głos dla danego języka:
@@ -587,13 +578,64 @@ function pickBestVoice(voices, langPrefix) {
 }
 
 function speakVideo(id, lang) {
-  if (!window.speechSynthesis) { showErr("Twoja przeglądarka nie obsługuje czytania na głos."); return; }
   // kliknięcie w grający przycisk = stop
   if (TTS.videoId === id && TTS.lang === lang) { stopSpeak(); render(); return; }
   stopSpeak();
 
   var v = findVideo(id);
   if (!v || !v.summary) return;
+
+  if (S.ttsEngine === "system") { speakSystem(v, id, lang); return; }
+  speakOpenAI(v, id, lang);
+}
+
+// ——— lektor OpenAI (naturalny głos) ———
+async function speakOpenAI(v, id, lang) {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); return; }
+  TTS.videoId = id;
+  TTS.lang = lang;
+  TTS.loading = true;
+  render();
+
+  // sklej punkty w jeden tekst (jedno zapytanie = jedna opłata)
+  var parts = [];
+  for (var j = 0; j < v.summary.length; j++) {
+    var p = v.summary[j];
+    var t = typeof p === "string" ? p : (lang === "en" ? p.en : p.pl);
+    if (t) parts.push(t);
+  }
+  var text = parts.join(". ");
+  if (!text) { stopSpeak(); render(); return; }
+
+  try {
+    var res = await fetch(workerUrl() + "/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text, voice: S.ttsVoice || "nova" }),
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || "błąd serwera");
+    }
+    var blob = await res.blob();
+    if (TTS.videoId !== id) return; // użytkownik w międzyczasie kliknął stop
+    var audio = new Audio(URL.createObjectURL(blob));
+    TTS.audio = audio;
+    TTS.loading = false;
+    audio.onended = function () { stopSpeak(); render(); };
+    audio.onerror = function () { showErr("Nie udało się odtworzyć audio."); stopSpeak(); render(); };
+    await audio.play();
+    render();
+  } catch (e) {
+    showErr("Lektor nie zadziałał: " + e.message + " — sprawdź OPENAI_API_KEY w Workerze.");
+    stopSpeak();
+    render();
+  }
+}
+
+// ——— lektor systemowy (zapasowy, darmowy) ———
+function speakSystem(v, id, lang) {
+  if (!window.speechSynthesis) { showErr("Twoja przeglądarka nie obsługuje czytania na głos."); return; }
   TTS.videoId = id;
   TTS.lang = lang;
 
@@ -629,6 +671,30 @@ function speakVideo(id, lang) {
   }
   if (queued === 0) { stopSpeak(); return; }
   render();
+}
+
+async function testOaVoice() {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera."); return; }
+  var voice = document.getElementById("oa-voice").value;
+  showErr(null);
+  try {
+    var res = await fetch(workerUrl() + "/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: "Test głosu. Bitcoin wzrósł o dwanaście procent w tym tygodniu. Voice test in English as well.",
+        voice: voice,
+      }),
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || "błąd serwera");
+    }
+    var blob = await res.blob();
+    new Audio(URL.createObjectURL(blob)).play();
+  } catch (e) {
+    showErr("Test nie zadziałał: " + e.message);
+  }
 }
 
 // ================= SŁOWNICZEK (dymek) =================
