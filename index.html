@@ -56,7 +56,11 @@ nav{display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap}
 .digest{margin-top:12px; border-left:3px solid var(--amber); padding-left:12px}
 .verdict{font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500; margin-bottom:8px}
 .digest ul{margin:0; padding-left:18px}
-.digest li{font-size:14px; line-height:1.55; margin-bottom:10px}
+.digest li{font-size:14px; line-height:1.55; margin-bottom:10px; border-radius:6px}
+.digest li.speaking{background:var(--amber-dim); padding:2px 6px; margin-left:-6px}
+.fold{background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:13px; padding:6px 10px; cursor:pointer; flex:none}
+.tts{background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; padding:8px 12px; font-family:inherit; cursor:pointer}
+.tts.playing{border-color:var(--amber); color:var(--amber); background:var(--amber-dim)}
 .pl-sub{color:var(--muted); font-size:13px; margin-top:3px; line-height:1.5; border-radius:6px; padding:1px 4px; margin-left:-4px}
 .pl-sub.flash{background:var(--amber-dim); color:var(--text)}
 .w{cursor:pointer}
@@ -225,13 +229,17 @@ function renderVideos() {
     var v = S.videos[i];
     h += '<div class="vcard">' +
       '<button class="x" style="float:right" data-act="delVideo" data-id="' + v.id + '">✕</button>' +
+      '<button class="fold" style="float:right; margin-right:6px" data-act="fold" data-id="' + v.id + '">' + (v.collapsed ? "▸" : "▾") + "</button>" +
       '<div class="vhead">' +
       '<img class="thumb" loading="lazy" alt="" src="https://i.ytimg.com/vi/' + esc(v.videoId) + '/mqdefault.jpg">' +
       '<div class="grow">' +
       '<div class="vch">' + esc(v.channel) + (v.date ? " · " + esc(v.date) : "") + "</div>" +
       '<div class="vtitle">' + esc(v.title) + "</div>" +
       "</div></div>";
-    if (v.summary) {
+    if (v.summary && v.collapsed) {
+      // zwinięte: sam nagłówek, streszczenie schowane ale nie skasowane
+    } else if (v.summary) {
+      var bilingual = typeof v.summary[0] === "object";
       h += '<div class="digest">';
       if (v.verdict) {
         var ok = v.verdict === "OBEJRZYJ";
@@ -241,20 +249,30 @@ function renderVideos() {
       h += "<ul>";
       for (var j = 0; j < v.summary.length; j++) {
         var p = v.summary[j];
+        var liId = ' id="li-' + v.id + "-" + j + '"';
         if (typeof p === "string") {
           // stare streszczenia (tylko PL)
-          h += "<li>" + esc(p) + "</li>";
+          h += "<li" + liId + ">" + esc(p) + "</li>";
         } else if (S.langMode === "en") {
-          h += '<li lang="en">' + wrapWords(p.en, p.words, v.id, j) + "</li>";
+          h += '<li lang="en"' + liId + ">" + wrapWords(p.en, p.words, v.id, j) + "</li>";
         } else if (S.langMode === "nauka") {
-          h += '<li lang="en">' + wrapWords(p.en, p.words, v.id, j) +
+          h += '<li lang="en"' + liId + ">" + wrapWords(p.en, p.words, v.id, j) +
             '<div class="pl-sub" id="pl-' + v.id + "-" + j + '">' + esc(p.pl) + "</div></li>";
         } else {
-          h += "<li>" + esc(p.pl) + "</li>";
+          h += "<li" + liId + ">" + esc(p.pl) + "</li>";
         }
       }
+      var speakingThis = TTS.videoId === v.id;
       h += "</ul></div>" +
-        '<div class="vactions"><a class="link" target="_blank" rel="noreferrer" href="https://www.youtube.com/watch?v=' + esc(v.videoId) + '">Otwórz w YT ↗</a></div>';
+        '<div class="vactions">' +
+        '<button class="tts' + (speakingThis && TTS.lang === "pl" ? " playing" : "") + '" data-act="say" data-id="' + v.id + '" data-lang="pl">' +
+        (speakingThis && TTS.lang === "pl" ? "⏹ Stop" : "🔊 PL") + "</button>" +
+        (bilingual
+          ? '<button class="tts' + (speakingThis && TTS.lang === "en" ? " playing" : "") + '" data-act="say" data-id="' + v.id + '" data-lang="en">' +
+            (speakingThis && TTS.lang === "en" ? "⏹ Stop" : "🔊 EN") + "</button>"
+          : "") +
+        '<a class="link" target="_blank" rel="noreferrer" href="https://www.youtube.com/watch?v=' + esc(v.videoId) + '">Otwórz w YT ↗</a>' +
+        "</div>";
     } else {
       h += '<div class="vactions">' +
         '<button class="small" data-act="sum" data-id="' + v.id + '"' + (busy[v.id] ? " disabled" : "") + ">" +
@@ -450,11 +468,74 @@ document.addEventListener("click", function (ev) {
   else if (act === "sum") { summarize(id); }
   else if (act === "pasteSum") { pasteSummarize(); }
   else if (act === "lang") { S.langMode = id; save(); render(); }
+  else if (act === "fold") {
+    var fv = findVideo(id);
+    if (fv) { fv.collapsed = !fv.collapsed; save(); render(); }
+  }
+  else if (act === "say") { speakVideo(id, t.getAttribute("data-lang")); }
   else if (act === "saveWorker") {
     S.workerUrl = document.getElementById("f-worker").value.trim();
     save(); showErr(null); tab = "kanaly"; render();
   }
 });
+
+// ================= LEKTOR (syntezator mowy w telefonie) =================
+var TTS = { videoId: null, lang: null };
+
+function stopSpeak() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  var el = document.querySelector(".digest li.speaking");
+  if (el) el.classList.remove("speaking");
+  TTS.videoId = null;
+  TTS.lang = null;
+}
+
+function speakVideo(id, lang) {
+  if (!window.speechSynthesis) { showErr("Twoja przeglądarka nie obsługuje czytania na głos."); return; }
+  // kliknięcie w grający przycisk = stop
+  if (TTS.videoId === id && TTS.lang === lang) { stopSpeak(); render(); return; }
+  stopSpeak();
+
+  var v = findVideo(id);
+  if (!v || !v.summary) return;
+  TTS.videoId = id;
+  TTS.lang = lang;
+
+  var voices = window.speechSynthesis.getVoices();
+  var wanted = lang === "en" ? "en" : "pl";
+  var voice = null;
+  for (var k = 0; k < voices.length; k++) {
+    if (voices[k].lang && voices[k].lang.toLowerCase().indexOf(wanted) === 0) { voice = voices[k]; break; }
+  }
+
+  var queued = 0;
+  for (var j = 0; j < v.summary.length; j++) {
+    var p = v.summary[j];
+    var textToSay = typeof p === "string" ? p : (lang === "en" ? p.en : p.pl);
+    if (!textToSay) continue;
+    var utt = new SpeechSynthesisUtterance(textToSay);
+    utt.lang = lang === "en" ? "en-US" : "pl-PL";
+    if (voice) utt.voice = voice;
+    utt.rate = 1.0;
+    (function (idx, isLast) {
+      utt.onstart = function () {
+        var prev = document.querySelector(".digest li.speaking");
+        if (prev) prev.classList.remove("speaking");
+        var el = document.getElementById("li-" + id + "-" + idx);
+        if (el) { el.classList.add("speaking"); el.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+      };
+      utt.onend = function () {
+        var el = document.getElementById("li-" + id + "-" + idx);
+        if (el) el.classList.remove("speaking");
+        if (isLast && TTS.videoId === id) { TTS.videoId = null; TTS.lang = null; render(); }
+      };
+    })(j, j === v.summary.length - 1);
+    window.speechSynthesis.speak(utt);
+    queued++;
+  }
+  if (queued === 0) { stopSpeak(); return; }
+  render();
+}
 
 // ================= SŁOWNICZEK (dymek) =================
 var tipEl = document.createElement("div");
