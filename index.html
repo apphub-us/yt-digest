@@ -47,6 +47,10 @@ nav{display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap}
 .btn2{background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:8px; padding:10px 18px; font-size:14px; font-family:inherit; cursor:pointer}
 .btnp{background:var(--amber); color:#1A1205; border:none; border-radius:8px; padding:10px 18px; font-weight:600; font-size:14px; font-family:inherit; cursor:pointer}
 .vcard{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px}
+.vhead{display:flex; gap:12px}
+.thumb{width:120px; height:68px; object-fit:cover; border-radius:8px; flex:none; background:var(--panel2)}
+.pastebox{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:14px; display:flex; gap:8px}
+.pastebox input{flex:1; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit; outline:none; min-width:0}
 .vch{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--amber); margin-bottom:4px}
 .vtitle{font-weight:600; font-size:15px; line-height:1.35}
 .digest{margin-top:12px; border-left:3px solid var(--amber); padding-left:12px}
@@ -196,16 +200,23 @@ function renderChannels() {
 }
 
 function renderVideos() {
-  var h = "";
+  var h = '<div class="pastebox">' +
+    '<input id="f-paste" placeholder="Wklej link do dowolnego filmu z YT" inputmode="url">' +
+    '<button class="small" data-act="pasteSum">Streść</button>' +
+    "</div>";
   if (S.lastCheck) h += '<p class="mono">Ostatnie sprawdzenie: ' + new Date(S.lastCheck).toLocaleString("pl-PL") + "</p>";
   if (S.videos.length === 0)
-    return h + '<p class="empty">Kliknij „Sprawdź nowości", żeby pobrać najnowsze filmy z kanałów z 🔔.</p>';
+    return h + '<p class="empty">Kliknij „Sprawdź nowości", żeby pobrać najnowsze filmy z kanałów z 🔔 — albo wklej wyżej link do dowolnego filmu.</p>';
   for (var i = 0; i < S.videos.length; i++) {
     var v = S.videos[i];
     h += '<div class="vcard">' +
       '<button class="x" style="float:right" data-act="delVideo" data-id="' + v.id + '">✕</button>' +
+      '<div class="vhead">' +
+      '<img class="thumb" loading="lazy" alt="" src="https://i.ytimg.com/vi/' + esc(v.videoId) + '/mqdefault.jpg">' +
+      '<div class="grow">' +
       '<div class="vch">' + esc(v.channel) + (v.date ? " · " + esc(v.date) : "") + "</div>" +
-      '<div class="vtitle">' + esc(v.title) + "</div>";
+      '<div class="vtitle">' + esc(v.title) + "</div>" +
+      "</div></div>";
     if (v.summary) {
       h += '<div class="digest">';
       if (v.verdict) {
@@ -304,6 +315,35 @@ async function checkNew() {
   render();
 }
 
+function extractVideoId(input) {
+  input = (input || "").trim();
+  var m =
+    input.match(/[?&]v=([0-9A-Za-z_-]{11})/) ||
+    input.match(/youtu\.be\/([0-9A-Za-z_-]{11})/) ||
+    input.match(/shorts\/([0-9A-Za-z_-]{11})/) ||
+    input.match(/live\/([0-9A-Za-z_-]{11})/) ||
+    input.match(/^([0-9A-Za-z_-]{11})$/);
+  return m ? m[1] : null;
+}
+
+async function pasteSummarize() {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); tab = "ustawienia"; render(); return; }
+  var input = document.getElementById("f-paste").value;
+  var vid = extractVideoId(input);
+  if (!vid) { showErr("Nie rozpoznaję linku — wklej pełny link do filmu z YouTube."); return; }
+  showErr(null);
+  // jeśli film już jest na liście, tylko go streszczamy
+  var existing = null, i;
+  for (i = 0; i < S.videos.length; i++) if (S.videos[i].videoId === vid) existing = S.videos[i];
+  if (!existing) {
+    existing = { id: uid(), videoId: vid, channel: "Wklejony link", title: "Film " + vid, date: "", summary: null, verdict: null };
+    S.videos.unshift(existing);
+    save();
+  }
+  render();
+  await summarize(existing.id);
+}
+
 async function summarize(id) {
   var v = null, i;
   for (i = 0; i < S.videos.length; i++) if (S.videos[i].id === id) v = S.videos[i];
@@ -315,6 +355,8 @@ async function summarize(id) {
     if (!res.ok) throw new Error(data.error || "Błąd streszczenia");
     v.summary = data.summary;
     v.verdict = data.verdict;
+    if (data.title && v.title.indexOf("Film ") === 0) v.title = data.title;
+    if (data.author && v.channel === "Wklejony link") v.channel = data.author;
     save();
   } catch (e) {
     showErr("Streszczenie nie powiodło się: " + e.message);
@@ -360,6 +402,7 @@ document.addEventListener("click", function (ev) {
     save(); render();
   }
   else if (act === "sum") { summarize(id); }
+  else if (act === "pasteSum") { pasteSummarize(); }
   else if (act === "saveWorker") {
     S.workerUrl = document.getElementById("f-worker").value.trim();
     save(); showErr(null); tab = "kanaly"; render();
