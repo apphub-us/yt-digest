@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0E1116">
+<title>YT Digest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E1116; --panel:#151A22; --panel2:#1B212C; --border:#242D3A;
+  --text:#E7ECF3; --muted:#8B94A3; --amber:#FFB454; --amber-dim:rgba(255,180,84,.12);
+  --red:#FF6B6B; --green:#58C97B;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+body{margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; padding-bottom:60px}
+.wrap{max-width:720px; margin:0 auto; padding:0 16px}
+header{padding:20px 0 12px}
+h1{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; letter-spacing:-.02em; margin:0; display:inline}
+h1 span{color:var(--amber)}
+.counts{float:right; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-top:8px}
+.tagline{color:var(--muted); font-size:13px; margin:4px 0 0}
+nav{display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap}
+.tab{background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:6px 16px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer}
+.tab.active{background:var(--amber-dim); color:var(--amber); border-color:var(--amber)}
+.spacer{flex:1}
+.primary{background:var(--amber); color:#1A1205; border:none; border-radius:999px; padding:6px 16px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer}
+.primary:disabled{background:var(--panel2); color:var(--muted)}
+.err{color:var(--red); font-size:13px; background:rgba(255,107,107,.1); border:1px solid rgba(255,107,107,.3); border-radius:8px; padding:8px 12px; margin:10px 0}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 16px}
+.chip{background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:5px 13px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer}
+.card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:12px}
+.bar{width:4px; align-self:stretch; border-radius:2px; flex:none}
+.grow{flex:1; min-width:0}
+.chname{font-weight:600; font-size:15px}
+.chmeta{color:var(--muted); font-size:12px; font-family:'IBM Plex Mono',monospace; word-break:break-all}
+.bell{background:transparent; border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:15px; cursor:pointer}
+.bell.on{background:var(--amber-dim); border-color:var(--amber)}
+.x{background:transparent; border:none; color:var(--muted); font-size:16px; padding:4px; cursor:pointer}
+.addbtn{width:100%; background:var(--panel); border:1px dashed var(--border); color:var(--muted); border-radius:12px; padding:14px; font-size:14px; font-family:inherit; margin-bottom:16px; cursor:pointer}
+.form{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px}
+.form input,.form select{width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit; margin-bottom:10px; outline:none; -webkit-appearance:none; min-height:42px}
+.row{display:flex; gap:10px}
+.btn2{background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:8px; padding:10px 18px; font-size:14px; font-family:inherit; cursor:pointer}
+.btnp{background:var(--amber); color:#1A1205; border:none; border-radius:8px; padding:10px 18px; font-weight:600; font-size:14px; font-family:inherit; cursor:pointer}
+.vcard{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px}
+.vch{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--amber); margin-bottom:4px}
+.vtitle{font-weight:600; font-size:15px; line-height:1.35}
+.digest{margin-top:12px; border-left:3px solid var(--amber); padding-left:12px}
+.verdict{font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500; margin-bottom:8px}
+.digest ul{margin:0; padding-left:18px}
+.digest li{font-size:14px; line-height:1.5; margin-bottom:6px}
+.vactions{margin-top:12px; display:flex; gap:10px; align-items:center}
+.link{color:var(--muted); font-size:13px; text-decoration:none; border:1px solid var(--border); border-radius:8px; padding:8px 12px}
+.small{background:var(--amber); color:#1A1205; border:none; border-radius:8px; padding:8px 16px; font-weight:600; font-size:13px; font-family:inherit; cursor:pointer}
+.small:disabled{background:var(--panel2); color:var(--muted)}
+.empty{color:var(--muted); font-size:14px; text-align:center; padding:30px 0}
+.mono{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); margin:0 0 12px}
+.hint{color:var(--muted); font-size:12px; margin:6px 0 0; line-height:1.5}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="counts" id="counts"></span>
+    <h1>YT&nbsp;<span>Digest</span></h1>
+    <p class="tagline">Wiedza z filmów bez oglądania.</p>
+  </header>
+
+  <nav>
+    <button class="tab active" data-act="tab" data-tab="kanaly" id="tab-kanaly">Kanały</button>
+    <button class="tab" data-act="tab" data-tab="nowosci" id="tab-nowosci">Nowości</button>
+    <button class="tab" data-act="tab" data-tab="ustawienia" id="tab-ustawienia">⚙</button>
+    <span class="spacer"></span>
+    <button class="primary" data-act="check" id="checkBtn">Sprawdź nowości</button>
+  </nav>
+
+  <div id="errBox"></div>
+  <main id="main"></main>
+</div>
+
+<script>
+"use strict";
+
+// ================= STAN =================
+var DEFAULTS = {
+  workerUrl: "",
+  categories: [
+    { id: "inw", name: "Inwestycje", color: "#58C97B" },
+    { id: "kry", name: "Krypto", color: "#F7931A" },
+    { id: "tech", name: "Technologia", color: "#5AA9FF" },
+    { id: "inne", name: "Inne", color: "#C792EA" }
+  ],
+  channels: [], // {id, name, channelId, categoryId, notify}
+  videos: [],   // {id, videoId, channel, title, date, summary, verdict}
+  lastCheck: null
+};
+var CAT_COLORS = ["#58C97B","#F7931A","#5AA9FF","#C792EA","#FF7AA2","#4DD6C1","#FFD166"];
+
+var S;
+try { S = JSON.parse(localStorage.getItem("ytdigest") || "null") || DEFAULTS; }
+catch (e) { S = DEFAULTS; }
+if (!S.workerUrl) S.workerUrl = "";
+
+var tab = "kanaly";
+var activeCat = "all";
+var showAdd = false;
+var busy = {};
+
+function save() { localStorage.setItem("ytdigest", JSON.stringify(S)); }
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function workerUrl() { return (S.workerUrl || "").replace(/\/+$/, ""); }
+function showErr(msg) {
+  document.getElementById("errBox").innerHTML = msg ? '<div class="err">' + esc(msg) + "</div>" : "";
+}
+
+// ================= RENDER =================
+function render() {
+  var el = document.getElementById("main");
+  var bells = 0, i;
+  for (i = 0; i < S.channels.length; i++) if (S.channels[i].notify) bells++;
+  document.getElementById("counts").textContent = S.channels.length + " kanałów · " + bells + " 🔔";
+
+  var tabs = ["kanaly","nowosci","ustawienia"];
+  for (i = 0; i < tabs.length; i++) {
+    document.getElementById("tab-" + tabs[i]).className = "tab" + (tab === tabs[i] ? " active" : "");
+  }
+
+  if (tab === "kanaly") el.innerHTML = renderChannels();
+  else if (tab === "nowosci") el.innerHTML = renderVideos();
+  else el.innerHTML = renderSettings();
+}
+
+function catById(id) {
+  for (var i = 0; i < S.categories.length; i++) if (S.categories[i].id === id) return S.categories[i];
+  return null;
+}
+
+function renderChannels() {
+  var h = '<div class="chips">';
+  h += '<button class="chip" data-act="cat" data-id="all" style="' +
+    (activeCat === "all" ? "color:#8B94A3;border-color:#8B94A3;background:rgba(139,148,163,.13)" : "") + '">Wszystkie</button>';
+  var i, c;
+  for (i = 0; i < S.categories.length; i++) {
+    c = S.categories[i];
+    h += '<button class="chip" data-act="cat" data-id="' + c.id + '" style="' +
+      (activeCat === c.id ? "color:" + c.color + ";border-color:" + c.color + ";background:" + c.color + "22" : "") +
+      '">' + esc(c.name) + "</button>";
+  }
+  h += '<button class="chip" data-act="addcat">+ kategoria</button></div>';
+
+  if (showAdd) {
+    h += '<div class="form">' +
+      '<input id="f-name" placeholder="Link do kanału, @handle lub nazwa">' +
+      '<select id="f-cat">';
+    for (i = 0; i < S.categories.length; i++)
+      h += '<option value="' + S.categories[i].id + '">' + esc(S.categories[i].name) + "</option>";
+    h += "</select>" +
+      '<div class="row">' +
+      '<button class="btnp" data-act="saveChannel">Dodaj kanał</button>' +
+      '<button class="btn2" data-act="cancelAdd">Anuluj</button>' +
+      "</div>" +
+      '<p class="hint">Najpewniej działa link do kanału lub @handle (np. youtube.com/@NazwaKanalu). Aplikacja sama znajdzie ID kanału.</p>' +
+      "</div>";
+  } else {
+    h += '<button class="addbtn" data-act="showAdd">+ Dodaj kanał</button>';
+  }
+
+  var list = [];
+  for (i = 0; i < S.channels.length; i++) {
+    if (activeCat === "all" || S.channels[i].categoryId === activeCat) list.push(S.channels[i]);
+  }
+  if (list.length === 0) {
+    h += '<p class="empty">' + (S.channels.length === 0 ?
+      "Dodaj pierwszy kanał — wklej link albo @handle." : "Brak kanałów w tej kategorii.") + "</p>";
+  }
+  for (i = 0; i < list.length; i++) {
+    var ch = list[i], cat = catById(ch.categoryId);
+    h += '<div class="card">' +
+      '<span class="bar" style="background:' + (cat ? cat.color : "#8B94A3") + '"></span>' +
+      '<div class="grow"><div class="chname">' + esc(ch.name) + "</div>" +
+      '<div class="chmeta">' + (cat ? esc(cat.name) : "") + " · " + esc(ch.channelId) + "</div></div>" +
+      '<button class="bell' + (ch.notify ? " on" : "") + '" data-act="bell" data-id="' + ch.id + '">' + (ch.notify ? "🔔" : "🔕") + "</button>" +
+      '<button class="x" data-act="delChannel" data-id="' + ch.id + '">✕</button>' +
+      "</div>";
+  }
+  return h;
+}
+
+function renderVideos() {
+  var h = "";
+  if (S.lastCheck) h += '<p class="mono">Ostatnie sprawdzenie: ' + new Date(S.lastCheck).toLocaleString("pl-PL") + "</p>";
+  if (S.videos.length === 0)
+    return h + '<p class="empty">Kliknij „Sprawdź nowości", żeby pobrać najnowsze filmy z kanałów z 🔔.</p>';
+  for (var i = 0; i < S.videos.length; i++) {
+    var v = S.videos[i];
+    h += '<div class="vcard">' +
+      '<button class="x" style="float:right" data-act="delVideo" data-id="' + v.id + '">✕</button>' +
+      '<div class="vch">' + esc(v.channel) + (v.date ? " · " + esc(v.date) : "") + "</div>" +
+      '<div class="vtitle">' + esc(v.title) + "</div>";
+    if (v.summary) {
+      h += '<div class="digest">';
+      if (v.verdict) {
+        var ok = v.verdict === "OBEJRZYJ";
+        h += '<div class="verdict" style="color:' + (ok ? "var(--green)" : "var(--muted)") + '">' +
+          (ok ? "▶ WARTO OBEJRZEĆ W CAŁOŚCI" : "✓ WYSTARCZY TEN SKRÓT") + "</div>";
+      }
+      h += "<ul>";
+      for (var j = 0; j < v.summary.length; j++) h += "<li>" + esc(v.summary[j]) + "</li>";
+      h += "</ul></div>" +
+        '<div class="vactions"><a class="link" target="_blank" rel="noreferrer" href="https://www.youtube.com/watch?v=' + esc(v.videoId) + '">Otwórz w YT ↗</a></div>';
+    } else {
+      h += '<div class="vactions">' +
+        '<button class="small" data-act="sum" data-id="' + v.id + '"' + (busy[v.id] ? " disabled" : "") + ">" +
+        (busy[v.id] ? "Streszczam…" : "Skrót + streszczenie") + "</button>" +
+        '<a class="link" target="_blank" rel="noreferrer" href="https://www.youtube.com/watch?v=' + esc(v.videoId) + '">Otwórz w YT ↗</a>' +
+        "</div>";
+    }
+    h += "</div>";
+  }
+  return h;
+}
+
+function renderSettings() {
+  return '<div class="form">' +
+    '<p class="hint" style="margin:0 0 8px">Adres Twojego Cloudflare Workera (np. https://ytdigest.twojanazwa.workers.dev)</p>' +
+    '<input id="f-worker" placeholder="https://...workers.dev" value="' + esc(S.workerUrl) + '">' +
+    '<button class="btnp" data-act="saveWorker">Zapisz</button>' +
+    '<p class="hint">Worker odpowiada za: znajdowanie ID kanału, sprawdzanie nowych filmów (RSS) i generowanie streszczeń z transkrypcji przez API Anthropic. Bez niego aplikacja nie pobierze danych.</p>' +
+    "</div>";
+}
+
+// ================= AKCJE =================
+async function addChannel() {
+  var input = document.getElementById("f-name").value.trim();
+  var catId = document.getElementById("f-cat").value;
+  if (!input) return;
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); return; }
+  showErr(null);
+  try {
+    var res = await fetch(workerUrl() + "/resolve?q=" + encodeURIComponent(input));
+    var data = await res.json();
+    if (!res.ok || !data.channelId) throw new Error(data.error || "Nie znaleziono kanału");
+    S.channels.push({
+      id: uid(),
+      name: data.title || input.replace(/^.*@/, "@"),
+      channelId: data.channelId,
+      categoryId: catId,
+      notify: true
+    });
+    showAdd = false;
+    save(); render();
+  } catch (e) {
+    showErr("Nie udało się dodać kanału: " + e.message);
+  }
+}
+
+async function checkNew() {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); tab = "ustawienia"; render(); return; }
+  var watched = [];
+  for (var i = 0; i < S.channels.length; i++) if (S.channels[i].notify) watched.push(S.channels[i]);
+  if (watched.length === 0) { showErr("Włącz dzwonek przy przynajmniej jednym kanale."); return; }
+
+  showErr(null);
+  var btn = document.getElementById("checkBtn");
+  btn.disabled = true; btn.textContent = "Sprawdzam…";
+
+  var existing = {};
+  for (i = 0; i < S.videos.length; i++) existing[S.videos[i].videoId] = true;
+  var fresh = [];
+  var cutoff = Date.now() - 14 * 24 * 3600 * 1000; // ostatnie 14 dni
+
+  for (i = 0; i < watched.length; i++) {
+    try {
+      var res = await fetch(workerUrl() + "/feed?channelId=" + encodeURIComponent(watched[i].channelId));
+      var data = await res.json();
+      if (!res.ok) continue;
+      for (var j = 0; j < (data.videos || []).length; j++) {
+        var v = data.videos[j];
+        if (existing[v.videoId]) continue;
+        if (v.published && new Date(v.published).getTime() < cutoff) continue;
+        fresh.push({
+          id: uid(), videoId: v.videoId, channel: watched[i].name,
+          title: v.title, date: v.published, summary: null, verdict: null
+        });
+      }
+    } catch (e) { /* pojedynczy kanał może zawieść — idziemy dalej */ }
+  }
+
+  fresh.sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+  S.videos = fresh.concat(S.videos).slice(0, 80);
+  S.lastCheck = new Date().toISOString();
+  save();
+  btn.disabled = false; btn.textContent = "Sprawdź nowości";
+  tab = "nowosci";
+  render();
+}
+
+async function summarize(id) {
+  var v = null, i;
+  for (i = 0; i < S.videos.length; i++) if (S.videos[i].id === id) v = S.videos[i];
+  if (!v) return;
+  busy[id] = true; render();
+  try {
+    var res = await fetch(workerUrl() + "/summary?videoId=" + encodeURIComponent(v.videoId));
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Błąd streszczenia");
+    v.summary = data.summary;
+    v.verdict = data.verdict;
+    save();
+  } catch (e) {
+    showErr("Streszczenie nie powiodło się: " + e.message);
+  }
+  busy[id] = false;
+  render();
+}
+
+// ================= ZDARZENIA =================
+document.addEventListener("click", function (ev) {
+  var t = ev.target.closest("[data-act]");
+  if (!t) return;
+  var act = t.getAttribute("data-act");
+  var id = t.getAttribute("data-id");
+  var i;
+
+  if (act === "tab") { tab = t.getAttribute("data-tab"); showErr(null); render(); }
+  else if (act === "check") { checkNew(); }
+  else if (act === "cat") { activeCat = id; render(); }
+  else if (act === "addcat") {
+    var name = prompt("Nazwa nowej kategorii:");
+    if (name && name.trim()) {
+      S.categories.push({ id: uid(), name: name.trim(), color: CAT_COLORS[S.categories.length % CAT_COLORS.length] });
+      save(); render();
+    }
+  }
+  else if (act === "showAdd") { showAdd = true; render(); }
+  else if (act === "cancelAdd") { showAdd = false; render(); }
+  else if (act === "saveChannel") { addChannel(); }
+  else if (act === "bell") {
+    for (i = 0; i < S.channels.length; i++)
+      if (S.channels[i].id === id) S.channels[i].notify = !S.channels[i].notify;
+    save(); render();
+  }
+  else if (act === "delChannel") {
+    for (i = S.channels.length - 1; i >= 0; i--)
+      if (S.channels[i].id === id) S.channels.splice(i, 1);
+    save(); render();
+  }
+  else if (act === "delVideo") {
+    for (i = S.videos.length - 1; i >= 0; i--)
+      if (S.videos[i].id === id) S.videos.splice(i, 1);
+    save(); render();
+  }
+  else if (act === "sum") { summarize(id); }
+  else if (act === "saveWorker") {
+    S.workerUrl = document.getElementById("f-worker").value.trim();
+    save(); showErr(null); tab = "kanaly"; render();
+  }
+});
+
+render();
+if (!S.workerUrl) { tab = "ustawienia"; render(); }
+</script>
+</body>
+</html>
