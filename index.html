@@ -490,6 +490,34 @@ function stopSpeak() {
   TTS.lang = null;
 }
 
+// wybiera najlepszy dostępny głos dla danego języka:
+// premium/enhanced/natural/neural > zwykłe głosy sieciowe (Google) > lokalne domyślne > "Compact" (najbardziej robotyczny)
+function pickBestVoice(voices, langPrefix) {
+  var candidates = [];
+  for (var i = 0; i < voices.length; i++) {
+    if (voices[i].lang && voices[i].lang.toLowerCase().indexOf(langPrefix) === 0) candidates.push(voices[i]);
+  }
+  if (candidates.length === 0) return null;
+
+  function score(v) {
+    var name = (v.name || "").toLowerCase();
+    var s = 0;
+    if (name.indexOf("premium") !== -1) s += 100;
+    if (name.indexOf("enhanced") !== -1) s += 90;
+    if (name.indexOf("neural") !== -1) s += 90;
+    if (name.indexOf("natural") !== -1) s += 85;
+    if (name.indexOf("siri") !== -1) s += 70;
+    if (name.indexOf("google") !== -1) s += 50;
+    if (name.indexOf("compact") !== -1) s -= 100;
+    if (name.indexOf("eloquence") !== -1) s -= 100;
+    if (v.localService === false) s += 5; // głosy sieciowe bywają lepszej jakości
+    return s;
+  }
+
+  candidates.sort(function (a, b) { return score(b) - score(a); });
+  return candidates[0];
+}
+
 function speakVideo(id, lang) {
   if (!window.speechSynthesis) { showErr("Twoja przeglądarka nie obsługuje czytania na głos."); return; }
   // kliknięcie w grający przycisk = stop
@@ -503,10 +531,7 @@ function speakVideo(id, lang) {
 
   var voices = window.speechSynthesis.getVoices();
   var wanted = lang === "en" ? "en" : "pl";
-  var voice = null;
-  for (var k = 0; k < voices.length; k++) {
-    if (voices[k].lang && voices[k].lang.toLowerCase().indexOf(wanted) === 0) { voice = voices[k]; break; }
-  }
+  var voice = pickBestVoice(voices, wanted);
 
   var queued = 0;
   for (var j = 0; j < v.summary.length; j++) {
@@ -516,7 +541,8 @@ function speakVideo(id, lang) {
     var utt = new SpeechSynthesisUtterance(textToSay);
     utt.lang = lang === "en" ? "en-US" : "pl-PL";
     if (voice) utt.voice = voice;
-    utt.rate = 1.0;
+    utt.rate = 0.97;
+    utt.pitch = 1.0;
     (function (idx, isLast) {
       utt.onstart = function () {
         var prev = document.querySelector(".digest li.speaking");
