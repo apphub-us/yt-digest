@@ -286,12 +286,47 @@ function renderVideos() {
 }
 
 function renderSettings() {
-  return '<div class="form">' +
+  var h = '<div class="form">' +
     '<p class="hint" style="margin:0 0 8px">Adres Twojego Cloudflare Workera (np. https://ytdigest.twojanazwa.workers.dev)</p>' +
     '<input id="f-worker" placeholder="https://...workers.dev" value="' + esc(S.workerUrl) + '">' +
     '<button class="btnp" data-act="saveWorker">Zapisz</button>' +
-    '<p class="hint">Worker odpowiada za: znajdowanie ID kanału, sprawdzanie nowych filmów (RSS) i generowanie streszczeń z transkrypcji przez API Anthropic. Bez niego aplikacja nie pobierze danych.</p>' +
+    '<p class="hint">Worker odpowiada za: znajdowanie ID kanału, sprawdzanie nowych filmów (RSS) i generowanie streszczeń z transkrypcji przez API Anthropic.</p>' +
     "</div>";
+
+  // ——— wybór głosu lektora ———
+  var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  h += '<div class="form">' +
+    '<p class="hint" style="margin:0 0 8px">Głos lektora — wybierz i przetestuj. Jeśli lista jest pusta, kliknij „Odśwież listę".</p>';
+
+  var langs = [["pl", "Polski"], ["en", "Angielski"]];
+  for (var L = 0; L < langs.length; L++) {
+    var pref = langs[L][0];
+    var opts = [];
+    for (var i = 0; i < voices.length; i++) {
+      if (voices[i].lang && voices[i].lang.toLowerCase().indexOf(pref) === 0) opts.push(voices[i]);
+    }
+    h += '<p class="hint" style="margin:10px 0 4px"><b>' + langs[L][1] + "</b> (" + opts.length + " dostępnych)</p>";
+    if (opts.length === 0) {
+      h += '<p class="hint" style="margin:0 0 6px">Brak głosów dla tego języka.</p>';
+    } else {
+      h += '<select id="voice-' + pref + '">';
+      h += '<option value="">— automatycznie (najlepszy) —</option>';
+      for (i = 0; i < opts.length; i++) {
+        var sel = S.voice && S.voice[pref] === opts[i].name ? " selected" : "";
+        h += '<option value="' + esc(opts[i].name) + '"' + sel + ">" +
+          esc(opts[i].name) + " · " + esc(opts[i].lang) + (opts[i].localService ? "" : " · sieciowy") + "</option>";
+      }
+      h += "</select>" +
+        '<div class="row" style="margin-bottom:6px">' +
+        '<button class="small" data-act="saveVoice" data-id="' + pref + '">Zapisz</button>' +
+        '<button class="btn2" data-act="testVoice" data-id="' + pref + '">▶ Test</button>' +
+        "</div>";
+    }
+  }
+  h += '<button class="btn2" data-act="reloadVoices" style="margin-top:6px">Odśwież listę głosów</button>' +
+    '<p class="hint">Wskazówka: głosy z dopiskiem Premium / Enhanced / Ulepszony brzmią najbardziej naturalnie. Na iPhonie pobierz je w Ustawienia → Dostępność → Zawartość mówiona → Głosy.</p>' +
+    "</div>";
+  return h;
 }
 
 // ================= AKCJE =================
@@ -473,6 +508,33 @@ document.addEventListener("click", function (ev) {
     if (fv) { fv.collapsed = !fv.collapsed; save(); render(); }
   }
   else if (act === "say") { speakVideo(id, t.getAttribute("data-lang")); }
+  else if (act === "saveVoice") {
+    var sel = document.getElementById("voice-" + id);
+    if (!S.voice) S.voice = {};
+    S.voice[id] = sel.value || null;
+    save();
+    showErr(null);
+    render();
+  }
+  else if (act === "testVoice") {
+    var selT = document.getElementById("voice-" + id);
+    var name = selT.value;
+    var vs = window.speechSynthesis.getVoices();
+    var chosen = null;
+    for (i = 0; i < vs.length; i++) if (vs[i].name === name) chosen = vs[i];
+    if (!chosen) chosen = pickBestVoice(vs, id);
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(
+      id === "pl"
+        ? "Test głosu. Bitcoin wzrósł o dwanaście procent w tym tygodniu."
+        : "Voice test. Bitcoin rose twelve percent this week."
+    );
+    u.lang = id === "pl" ? "pl-PL" : "en-US";
+    if (chosen) u.voice = chosen;
+    u.rate = 0.97;
+    window.speechSynthesis.speak(u);
+  }
+  else if (act === "reloadVoices") { render(); }
   else if (act === "saveWorker") {
     S.workerUrl = document.getElementById("f-worker").value.trim();
     save(); showErr(null); tab = "kanaly"; render();
@@ -493,6 +555,12 @@ function stopSpeak() {
 // wybiera najlepszy dostępny głos dla danego języka:
 // premium/enhanced/natural/neural > zwykłe głosy sieciowe (Google) > lokalne domyślne > "Compact" (najbardziej robotyczny)
 function pickBestVoice(voices, langPrefix) {
+  // 1) głos wybrany ręcznie przez użytkownika w ⚙
+  if (S.voice && S.voice[langPrefix]) {
+    for (var q = 0; q < voices.length; q++) {
+      if (voices[q].name === S.voice[langPrefix]) return voices[q];
+    }
+  }
   var candidates = [];
   for (var i = 0; i < voices.length; i++) {
     if (voices[i].lang && voices[i].lang.toLowerCase().indexOf(langPrefix) === 0) candidates.push(voices[i]);
@@ -617,6 +685,14 @@ document.addEventListener("click", function (ev) {
   if (t) { showTip(t); ev.stopPropagation(); }
   else hideTip();
 }, true);
+
+// iOS/Chrome ładują listę głosów asynchronicznie — odśwież widok gdy będą gotowe
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = function () {
+    if (tab === "ustawienia") render();
+  };
+  window.speechSynthesis.getVoices();
+}
 
 render();
 if (!S.workerUrl) { tab = "ustawienia"; render(); }
