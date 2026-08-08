@@ -56,7 +56,16 @@ nav{display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap}
 .digest{margin-top:12px; border-left:3px solid var(--amber); padding-left:12px}
 .verdict{font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500; margin-bottom:8px}
 .digest ul{margin:0; padding-left:18px}
-.digest li{font-size:14px; line-height:1.5; margin-bottom:6px}
+.digest li{font-size:14px; line-height:1.55; margin-bottom:10px}
+.pl-sub{color:var(--muted); font-size:13px; margin-top:3px; line-height:1.5; border-radius:6px; padding:1px 4px; margin-left:-4px}
+.pl-sub.flash{background:var(--amber-dim); color:var(--text)}
+.w{cursor:pointer}
+.w.hit{border-bottom:1px dotted var(--amber)}
+.langbar{display:flex; gap:6px; margin:0 0 12px}
+.langbtn{background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600; font-family:inherit; cursor:pointer}
+.langbtn.active{background:var(--amber-dim); color:var(--amber); border-color:var(--amber)}
+#tip{position:fixed; z-index:99; background:var(--panel2); border:1px solid var(--amber); border-radius:8px; padding:6px 10px; font-size:13px; color:var(--text); max-width:240px; box-shadow:0 4px 16px rgba(0,0,0,.5); display:none; pointer-events:none}
+#tip b{color:var(--amber); font-weight:600}
 .vactions{margin-top:12px; display:flex; gap:10px; align-items:center}
 .link{color:var(--muted); font-size:13px; text-decoration:none; border:1px solid var(--border); border-radius:8px; padding:8px 12px}
 .small{background:var(--amber); color:#1A1205; border:none; border-radius:8px; padding:8px 16px; font-weight:600; font-size:13px; font-family:inherit; cursor:pointer}
@@ -205,6 +214,11 @@ function renderVideos() {
     '<button class="small" data-act="pasteSum">Streść</button>' +
     "</div>";
   if (S.lastCheck) h += '<p class="mono">Ostatnie sprawdzenie: ' + new Date(S.lastCheck).toLocaleString("pl-PL") + "</p>";
+  h += '<div class="langbar">' +
+    '<button class="langbtn' + (S.langMode === "pl" || !S.langMode ? " active" : "") + '" data-act="lang" data-id="pl">PL</button>' +
+    '<button class="langbtn' + (S.langMode === "en" ? " active" : "") + '" data-act="lang" data-id="en">EN</button>' +
+    '<button class="langbtn' + (S.langMode === "nauka" ? " active" : "") + '" data-act="lang" data-id="nauka">🎓 Nauka</button>' +
+    "</div>";
   if (S.videos.length === 0)
     return h + '<p class="empty">Kliknij „Sprawdź nowości", żeby pobrać najnowsze filmy z kanałów z 🔔 — albo wklej wyżej link do dowolnego filmu.</p>';
   for (var i = 0; i < S.videos.length; i++) {
@@ -225,7 +239,20 @@ function renderVideos() {
           (ok ? "▶ WARTO OBEJRZEĆ W CAŁOŚCI" : "✓ WYSTARCZY TEN SKRÓT") + "</div>";
       }
       h += "<ul>";
-      for (var j = 0; j < v.summary.length; j++) h += "<li>" + esc(v.summary[j]) + "</li>";
+      for (var j = 0; j < v.summary.length; j++) {
+        var p = v.summary[j];
+        if (typeof p === "string") {
+          // stare streszczenia (tylko PL)
+          h += "<li>" + esc(p) + "</li>";
+        } else if (S.langMode === "en") {
+          h += '<li lang="en">' + wrapWords(p.en, p.words, v.id, j) + "</li>";
+        } else if (S.langMode === "nauka") {
+          h += '<li lang="en">' + wrapWords(p.en, p.words, v.id, j) +
+            '<div class="pl-sub" id="pl-' + v.id + "-" + j + '">' + esc(p.pl) + "</div></li>";
+        } else {
+          h += "<li>" + esc(p.pl) + "</li>";
+        }
+      }
       h += "</ul></div>" +
         '<div class="vactions"><a class="link" target="_blank" rel="noreferrer" href="https://www.youtube.com/watch?v=' + esc(v.videoId) + '">Otwórz w YT ↗</a></div>';
     } else {
@@ -313,6 +340,25 @@ async function checkNew() {
   btn.disabled = false; btn.textContent = "Sprawdź nowości";
   tab = "nowosci";
   render();
+}
+
+function normKey(w) {
+  return String(w || "").toLowerCase().replace(/[^a-z0-9'-]/g, "");
+}
+
+// otacza każde słowo wersji EN spanem; słowa ze słowniczka dostają klasę .hit
+function wrapWords(en, words, vidId, idx) {
+  var tokens = String(en || "").split(" ");
+  var out = [];
+  for (var i = 0; i < tokens.length; i++) {
+    var key = normKey(tokens[i]);
+    var hit = words && Object.prototype.hasOwnProperty.call(words, key);
+    out.push(
+      '<span class="w' + (hit ? " hit" : "") + '" data-vid="' + vidId + '" data-idx="' + idx +
+      '" data-key="' + esc(key) + '">' + esc(tokens[i]) + "</span>"
+    );
+  }
+  return out.join(" ");
 }
 
 function extractVideoId(input) {
@@ -403,11 +449,67 @@ document.addEventListener("click", function (ev) {
   }
   else if (act === "sum") { summarize(id); }
   else if (act === "pasteSum") { pasteSummarize(); }
+  else if (act === "lang") { S.langMode = id; save(); render(); }
   else if (act === "saveWorker") {
     S.workerUrl = document.getElementById("f-worker").value.trim();
     save(); showErr(null); tab = "kanaly"; render();
   }
 });
+
+// ================= SŁOWNICZEK (dymek) =================
+var tipEl = document.createElement("div");
+tipEl.id = "tip";
+document.body.appendChild(tipEl);
+
+function findVideo(id) {
+  for (var i = 0; i < S.videos.length; i++) if (S.videos[i].id === id) return S.videos[i];
+  return null;
+}
+
+function showTip(target) {
+  var key = target.getAttribute("data-key");
+  var vid = target.getAttribute("data-vid");
+  var idx = parseInt(target.getAttribute("data-idx"), 10);
+  var v = findVideo(vid);
+  var point = v && v.summary && v.summary[idx];
+  var words = point && point.words;
+
+  if (words && Object.prototype.hasOwnProperty.call(words, key)) {
+    tipEl.innerHTML = "<b>" + esc(target.textContent) + "</b> — " + esc(words[key]);
+    tipEl.style.display = "block";
+    var r = target.getBoundingClientRect();
+    var top = r.top - tipEl.offsetHeight - 8;
+    if (top < 8) top = r.bottom + 8;
+    var left = r.left;
+    if (left + tipEl.offsetWidth > window.innerWidth - 8) left = window.innerWidth - tipEl.offsetWidth - 8;
+    tipEl.style.top = top + "px";
+    tipEl.style.left = left + "px";
+  } else {
+    // słowo spoza słowniczka: podświetl polski odpowiednik zdania (tryb Nauka)
+    hideTip();
+    var sub = document.getElementById("pl-" + vid + "-" + idx);
+    if (sub) {
+      sub.classList.add("flash");
+      setTimeout(function () { sub.classList.remove("flash"); }, 1200);
+    }
+  }
+}
+
+function hideTip() { tipEl.style.display = "none"; }
+
+document.addEventListener("mouseover", function (ev) {
+  var t = ev.target.closest ? ev.target.closest(".w.hit") : null;
+  if (t) showTip(t);
+});
+document.addEventListener("mouseout", function (ev) {
+  if (ev.target.closest && ev.target.closest(".w")) hideTip();
+});
+// tap na telefonie (click działa też dla słów bez podkreślenia — podświetla polskie zdanie)
+document.addEventListener("click", function (ev) {
+  var t = ev.target.closest ? ev.target.closest(".w") : null;
+  if (t) { showTip(t); ev.stopPropagation(); }
+  else hideTip();
+}, true);
 
 render();
 if (!S.workerUrl) { tab = "ustawienia"; render(); }
