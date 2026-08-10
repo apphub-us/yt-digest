@@ -61,6 +61,21 @@ nav{display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap}
 .fold{background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:13px; padding:6px 10px; cursor:pointer; flex:none}
 .tts{background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; padding:8px 12px; font-family:inherit; cursor:pointer}
 .tts.playing{border-color:var(--amber); color:var(--amber); background:var(--amber-dim)}
+.ents{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0}
+.ent{background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:5px 11px; font-size:12px; color:var(--text); font-family:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:5px}
+.ent:active{border-color:var(--amber)}
+.ent .t{color:var(--muted); font-size:10px; font-family:'IBM Plex Mono',monospace; text-transform:uppercase}
+.dig{background:transparent; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:2px 6px; border-radius:6px; margin-left:4px}
+.dig:hover{color:var(--amber)}
+.dd{margin-top:12px; background:var(--panel2); border:1px solid var(--border); border-left:3px solid var(--green); border-radius:10px; padding:14px}
+.dd h4{margin:0 0 8px; font-family:'Space Grotesk',sans-serif; font-size:15px; color:var(--text)}
+.dd .sec{margin-bottom:10px}
+.dd .sec b{display:block; font-size:13px; color:var(--green); margin-bottom:3px}
+.dd .sec p{margin:0; font-size:13px; line-height:1.55; color:var(--text)}
+.dd .src{margin-top:10px; padding-top:8px; border-top:1px solid var(--border)}
+.dd .src a{display:block; color:var(--muted); font-size:12px; text-decoration:none; margin-bottom:4px; word-break:break-word}
+.dd .src a:hover{color:var(--green)}
+.dd .close{float:right; background:transparent; border:none; color:var(--muted); font-size:14px; cursor:pointer}
 .pl-sub{color:var(--muted); font-size:13px; margin-top:3px; line-height:1.5; border-radius:6px; padding:1px 4px; margin-left:-4px}
 .pl-sub.flash{background:var(--amber-dim); color:var(--text)}
 .w{cursor:pointer}
@@ -250,25 +265,69 @@ function renderVideos() {
       for (var j = 0; j < v.summary.length; j++) {
         var p = v.summary[j];
         var liId = ' id="li-' + v.id + "-" + j + '"';
+        var digBtn = '<button class="dig" data-act="dig" data-id="' + v.id + '" data-idx="' + j + '" title="Pogłęb ten wątek">🔍</button>';
         if (typeof p === "string") {
           // stare streszczenia (tylko PL)
-          h += "<li" + liId + ">" + esc(p) + "</li>";
+          h += "<li" + liId + ">" + esc(p) + digBtn + "</li>";
         } else if (S.langMode === "en") {
-          h += '<li lang="en"' + liId + ">" + wrapWords(p.en, p.words, v.id, j) + "</li>";
+          h += '<li lang="en"' + liId + ">" + wrapWords(p.en, p.words, v.id, j) + digBtn + "</li>";
         } else if (S.langMode === "nauka") {
-          h += '<li lang="en"' + liId + ">" + wrapWords(p.en, p.words, v.id, j) +
+          h += '<li lang="en"' + liId + ">" + wrapWords(p.en, p.words, v.id, j) + digBtn +
             '<div class="pl-sub" id="pl-' + v.id + "-" + j + '">' + esc(p.pl) + "</div></li>";
         } else {
-          h += "<li" + liId + ">" + esc(p.pl) + "</li>";
+          h += "<li" + liId + ">" + esc(p.pl) + digBtn + "</li>";
         }
       }
+      h += "</ul>";
+
+      // ——— encje: osoby, spółki, tickery, pojęcia ———
+      if (v.entities && v.entities.length) {
+        h += '<div class="ents">';
+        for (var e = 0; e < v.entities.length; e++) {
+          var en2 = v.entities[e];
+          h += '<button class="ent" data-act="digent" data-id="' + v.id + '" data-idx="' + e + '">' +
+            esc(en2.name) + '<span class="t">' + esc(en2.type || "") + "</span></button>";
+        }
+        h += "</div>";
+      }
+
+      // ——— wynik pogłębiania ———
+      if (v.deep) {
+        if (v.deep.loading) {
+          h += '<div class="dd"><h4>⏳ Szukam w internecie…</h4>' +
+            '<p class="hint" style="margin:0">' + esc(v.deep.topic) + "</p></div>";
+        } else if (v.deep.error) {
+          h += '<div class="dd" style="border-left-color:var(--red)">' +
+            '<button class="close" data-act="closedig" data-id="' + v.id + '">✕</button>' +
+            "<h4>Nie udało się pogłębić</h4><p class=\"hint\" style=\"margin:0\">" + esc(v.deep.error) + "</p></div>";
+        } else {
+          h += '<div class="dd">' +
+            '<button class="close" data-act="closedig" data-id="' + v.id + '">✕</button>' +
+            "<h4>" + esc(v.deep.title) + "</h4>";
+          for (var s = 0; s < (v.deep.sections || []).length; s++) {
+            h += '<div class="sec"><b>' + esc(v.deep.sections[s].h) + "</b><p>" +
+              esc(v.deep.sections[s].body) + "</p></div>";
+          }
+          if (v.deep.sources && v.deep.sources.length) {
+            h += '<div class="src">';
+            for (var so = 0; so < v.deep.sources.length; so++) {
+              var srcU = v.deep.sources[so].url || "";
+              if (srcU.indexOf("http") !== 0) continue;
+              h += '<a href="' + esc(srcU) + '" target="_blank" rel="noreferrer">↗ ' +
+                esc(v.deep.sources[so].title || srcU) + "</a>";
+            }
+            h += "</div>";
+          }
+          h += "</div>";
+        }
+      }
+      h += "</div>";
       var speakingThis = TTS.videoId === v.id;
       function ttsLabel(lg, icon) {
         if (speakingThis && TTS.lang === lg) return TTS.loading ? "⏳ Ładuję…" : "⏹ Stop";
         return icon;
       }
-      h += "</ul></div>" +
-        '<div class="vactions">' +
+      h += '<div class="vactions">' +
         '<button class="tts' + (speakingThis && TTS.lang === "pl" ? " playing" : "") + '" data-act="say" data-id="' + v.id + '" data-lang="pl">' +
         ttsLabel("pl", "🔊 PL") + "</button>" +
         (bilingual
@@ -461,6 +520,7 @@ async function summarize(id) {
     if (!res.ok) throw new Error(data.error || "Błąd streszczenia");
     v.summary = data.summary;
     v.verdict = data.verdict;
+    v.entities = data.entities || [];
     if (data.title && v.title.indexOf("Film ") === 0) v.title = data.title;
     if (data.author && v.channel === "Wklejony link") v.channel = data.author;
     save();
@@ -515,6 +575,34 @@ document.addEventListener("click", function (ev) {
     if (fv) { fv.collapsed = !fv.collapsed; save(); render(); }
   }
   else if (act === "say") { speakVideo(id, t.getAttribute("data-lang")); }
+  else if (act === "dig") {
+    var dv = findVideo(id);
+    var di = parseInt(t.getAttribute("data-idx"), 10);
+    if (dv && dv.summary && dv.summary[di]) {
+      var pt = dv.summary[di];
+      var topicTxt = typeof pt === "string" ? pt : pt.pl;
+      // kontekst: sąsiednie punkty, żeby model wiedział o czym był film
+      var ctx = [];
+      for (i = 0; i < dv.summary.length && ctx.length < 4; i++) {
+        if (i === di) continue;
+        var cp = dv.summary[i];
+        ctx.push(typeof cp === "string" ? cp : cp.pl);
+      }
+      digDeeper(id, topicTxt, ctx.join(" "), "point");
+    }
+  }
+  else if (act === "digent") {
+    var ev2 = findVideo(id);
+    var ei = parseInt(t.getAttribute("data-idx"), 10);
+    if (ev2 && ev2.entities && ev2.entities[ei]) {
+      var ent = ev2.entities[ei];
+      digDeeper(id, ent.name, ent.note || "", "entity");
+    }
+  }
+  else if (act === "closedig") {
+    var cv = findVideo(id);
+    if (cv) { delete cv.deep; save(); render(); }
+  }
   else if (act === "engine") { S.ttsEngine = id; save(); render(); }
   else if (act === "saveOaVoice") {
     S.ttsVoice = document.getElementById("oa-voice").value;
@@ -695,6 +783,41 @@ async function testOaVoice() {
   } catch (e) {
     showErr("Test nie zadziałał: " + e.message);
   }
+}
+
+// ================= POGŁĘBIANIE TEMATU =================
+async function digDeeper(videoId, topic, context, kind) {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); return; }
+  var v = findVideo(videoId);
+  if (!v) return;
+  showErr(null);
+  v.deep = { loading: true, topic: topic };
+  render();
+
+  try {
+    var res = await fetch(workerUrl() + "/deepdive", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: topic,
+        context: context || "",
+        videoTitle: v.title || "",
+        kind: kind || "point",
+      }),
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || "błąd serwera");
+    v.deep = {
+      title: data.title || topic,
+      sections: data.sections || [],
+      sources: data.sources || [],
+      topic: topic,
+    };
+  } catch (e) {
+    v.deep = { error: e.message, topic: topic };
+  }
+  save();
+  render();
 }
 
 // ================= SŁOWNICZEK (dymek) =================
