@@ -514,19 +514,32 @@ async function summarize(id) {
   for (i = 0; i < S.videos.length; i++) if (S.videos[i].id === id) v = S.videos[i];
   if (!v) return;
   busy[id] = true; render();
-  try {
-    var res = await fetch(workerUrl() + "/summary?videoId=" + encodeURIComponent(v.videoId));
-    var data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Błąd streszczenia");
-    v.summary = data.summary;
-    v.verdict = data.verdict;
-    v.entities = data.entities || [];
-    if (data.title && v.title.indexOf("Film ") === 0) v.title = data.title;
-    if (data.author && v.channel === "Wklejony link") v.channel = data.author;
-    save();
-  } catch (e) {
-    showErr("Streszczenie nie powiodło się: " + e.message);
+  var lastErr = "";
+  // dwie próby: YouTube potrafi chwilowo ograniczyć ruch
+  for (var attempt = 0; attempt < 2; attempt++) {
+    try {
+      var res = await fetch(workerUrl() + "/summary?videoId=" + encodeURIComponent(v.videoId));
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Błąd streszczenia");
+      v.summary = data.summary;
+      v.verdict = data.verdict;
+      v.entities = data.entities || [];
+      if (data.title && v.title.indexOf("Film ") === 0) v.title = data.title;
+      if (data.author && v.channel === "Wklejony link") v.channel = data.author;
+      save();
+      lastErr = "";
+      break;
+    } catch (e) {
+      lastErr = e.message;
+      // ponawiamy tylko przy chwilowej blokadzie, nie przy braku napisów
+      if (attempt === 0 && lastErr.indexOf("blokuje") !== -1) {
+        await new Promise(function (r) { setTimeout(r, 2500); });
+        continue;
+      }
+      break;
+    }
   }
+  if (lastErr) showErr("Streszczenie nie powiodło się: " + lastErr);
   busy[id] = false;
   render();
 }
