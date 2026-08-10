@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0F0F0F">
+<title>YT Digest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0F0F0F; --panel:#212121; --panel2:#121212; --border:#3F3F3F;
+  --text:#F1F1F1; --muted:#AAAAAA; --amber:#FF0033; --amber-dim:rgba(255,0,51,.15);
+  --red:#FF6B6B; --green:#3EA6FF;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+body{margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; padding-bottom:60px}
+.wrap{max-width:720px; margin:0 auto; padding:0 16px}
+header{padding:20px 0 12px}
+h1{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; letter-spacing:-.02em; margin:0; display:inline}
+h1 span{color:var(--amber)}
+.counts{float:right; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-top:8px}
+.tagline{color:var(--muted); font-size:13px; margin:4px 0 0}
+nav{display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap}
+.tab{background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:6px 16px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer}
+.tab.active{background:var(--amber-dim); color:var(--amber); border-color:var(--amber)}
+.spacer{flex:1}
+.primary{background:var(--amber); color:#FFFFFF; border:none; border-radius:999px; padding:6px 16px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer}
+.primary:disabled{background:var(--panel2); color:var(--muted)}
+.err{color:var(--red); font-size:13px; background:rgba(255,107,107,.1); border:1px solid rgba(255,107,107,.3); border-radius:8px; padding:8px 12px; margin:10px 0}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 16px}
+.chip{background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:5px 13px; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer}
+.card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:12px}
+.bar{width:4px; align-self:stretch; border-radius:2px; flex:none}
+.grow{flex:1; min-width:0}
+.chname{font-weight:600; font-size:15px}
+.chmeta{color:var(--muted); font-size:12px; font-family:'IBM Plex Mono',monospace; word-break:break-all}
+.bell{background:transparent; border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:15px; cursor:pointer}
+.bell.on{background:var(--amber-dim); border-color:var(--amber)}
+.x{background:transparent; border:none; color:var(--muted); font-size:16px; padding:4px; cursor:pointer}
+.addbtn{width:100%; background:var(--panel); border:1px dashed var(--border); color:var(--muted); border-radius:12px; padding:14px; font-size:14px; font-family:inherit; margin-bottom:16px; cursor:pointer}
+.form{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px}
+.form input,.form select{width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit; margin-bottom:10px; outline:none; -webkit-appearance:none; min-height:42px}
+.row{display:flex; gap:10px}
+.btn2{background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:8px; padding:10px 18px; font-size:14px; font-family:inherit; cursor:pointer}
+.btnp{background:var(--amber); color:#FFFFFF; border:none; border-radius:8px; padding:10px 18px; font-weight:600; font-size:14px; font-family:inherit; cursor:pointer}
+.vcard{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px}
+.vhead{display:flex; gap:12px}
+.thumb{width:120px; height:68px; object-fit:cover; border-radius:8px; flex:none; background:var(--panel2)}
+.pastebox{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:14px; display:flex; gap:8px}
+.pastebox input{flex:1; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit; outline:none; min-width:0}
+.vch{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--amber); margin-bottom:4px}
+.vtitle{font-weight:600; font-size:15px; line-height:1.35}
+.digest{margin-top:12px; border-left:3px solid var(--amber); padding-left:12px}
+.verdict{font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500; margin-bottom:8px}
+.digest ul{margin:0; padding-left:18px}
+.digest li{font-size:14px; line-height:1.55; margin-bottom:10px; border-radius:6px}
+.digest li.speaking{background:var(--amber-dim); padding:2px 6px; margin-left:-6px}
+.fold{background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:13px; padding:6px 10px; cursor:pointer; flex:none}
+.tts{background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; padding:8px 12px; font-family:inherit; cursor:pointer}
+.tts.playing{border-color:var(--amber); color:var(--amber); background:var(--amber-dim)}
+.ents{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0}
+.ent{background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:5px 11px; font-size:12px; color:var(--text); font-family:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:5px}
+.ent:active{border-color:var(--amber)}
+.ent .t{color:var(--muted); font-size:10px; font-family:'IBM Plex Mono',monospace; text-transform:uppercase}
+.dig{background:transparent; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:2px 6px; border-radius:6px; margin-left:4px}
+.dig:hover{color:var(--amber)}
+.dd{margin-top:12px; background:var(--panel2); border:1px solid var(--border); border-left:3px solid var(--green); border-radius:10px; padding:14px}
+.dd h4{margin:0 0 8px; font-family:'Space Grotesk',sans-serif; font-size:15px; color:var(--text)}
+.dd .sec{margin-bottom:10px}
+.dd .sec b{display:block; font-size:13px; color:var(--green); margin-bottom:3px}
+.dd .sec p{margin:0; font-size:13px; line-height:1.55; color:var(--text)}
+.dd .src{margin-top:10px; padding-top:8px; border-top:1px solid var(--border)}
+.dd .src a{display:block; color:var(--muted); font-size:12px; text-decoration:none; margin-bottom:4px; word-break:break-word}
+.dd .src a:hover{color:var(--green)}
+.dd .close{float:right; background:transparent; border:none; color:var(--muted); font-size:14px; cursor:pointer}
+.pl-sub{color:var(--muted); font-size:13px; margin-top:3px; line-height:1.5; border-radius:6px; padding:1px 4px; margin-left:-4px}
+.pl-sub.flash{background:var(--amber-dim); color:var(--text)}
+.w{cursor:pointer}
+.w.hit{border-bottom:1px dotted var(--amber)}
+.langbar{display:flex; gap:6px; margin:0 0 12px}
+.langbtn{background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:4px 12px; font-size:12px; font-weight:600; font-family:inherit; cursor:pointer}
+.langbtn.active{background:var(--amber-dim); color:var(--amber); border-color:var(--amber)}
+#tip{position:fixed; z-index:99; background:var(--panel2); border:1px solid var(--amber); border-radius:8px; padding:6px 10px; font-size:13px; color:var(--text); max-width:240px; box-shadow:0 4px 16px rgba(0,0,0,.5); display:none; pointer-events:none}
+#tip b{color:var(--amber); font-weight:600}
+.vactions{margin-top:12px; display:flex; gap:10px; align-items:center}
+.link{color:var(--muted); font-size:13px; text-decoration:none; border:1px solid var(--border); border-radius:8px; padding:8px 12px}
+.small{background:var(--amber); color:#FFFFFF; border:none; border-radius:8px; padding:8px 16px; font-weight:600; font-size:13px; font-family:inherit; cursor:pointer}
+.small:disabled{background:var(--panel2); color:var(--muted)}
+.empty{color:var(--muted); font-size:14px; text-align:center; padding:30px 0}
+.mono{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); margin:0 0 12px}
+.hint{color:var(--muted); font-size:12px; margin:6px 0 0; line-height:1.5}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="counts" id="counts"></span>
+    <h1>YT&nbsp;<span>Digest</span></h1>
+    <p class="tagline">Wiedza z filmów bez oglądania.</p>
+  </header>
+
+  <nav>
+    <button class="tab active" data-act="tab" data-tab="kanaly" id="tab-kanaly">Kanały</button>
+    <button class="tab" data-act="tab" data-tab="nowosci" id="tab-nowosci">Nowości</button>
+    <button class="tab" data-act="tab" data-tab="ustawienia" id="tab-ustawienia">⚙</button>
+    <span class="spacer"></span>
+    <button class="primary" data-act="check" id="checkBtn">Sprawdź nowości</button>
+  </nav>
+
+  <div id="errBox"></div>
+  <main id="main"></main>
+</div>
+
+<script>
+"use strict";
+
+// ================= STAN =================
+var DEFAULTS = {
+  workerUrl: "",
+  categories: [
+    { id: "inw", name: "Inwestycje", color: "#58C97B" },
+    { id: "kry", name: "Krypto", color: "#F7931A" },
+    { id: "tech", name: "Technologia", color: "#5AA9FF" },
+    { id: "inne", name: "Inne", color: "#C792EA" }
+  ],
+  channels: [], // {id, name, channelId, categoryId, notify}
+  videos: [],   // {id, videoId, channel, title, date, summary, verdict}
+  lastCheck: null
+};
+var CAT_COLORS = ["#58C97B","#F7931A","#5AA9FF","#C792EA","#FF7AA2","#4DD6C1","#FFD166"];
+
+var S;
+try { S = JSON.parse(localStorage.getItem("ytdigest") || "null") || DEFAULTS; }
+catch (e) { S = DEFAULTS; }
+if (!S.workerUrl) S.workerUrl = "";
+
+var tab = "kanaly";
+var activeCat = "all";
+var showAdd = false;
+var busy = {};
+
+function save() { localStorage.setItem("ytdigest", JSON.stringify(S)); }
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function workerUrl() { return (S.workerUrl || "").replace(/\/+$/, ""); }
+function showErr(msg) {
+  document.getElementById("errBox").innerHTML = msg ? '<div class="err">' + esc(msg) + "</div>" : "";
+}
+
+// ================= RENDER =================
+function render() {
+  var el = document.getElementById("main");
+  var bells = 0, i;
+  for (i = 0; i < S.channels.length; i++) if (S.channels[i].notify) bells++;
+  document.getElementById("counts").textContent = S.channels.length + " kanałów · " + bells + " 🔔";
+
+  var tabs = ["kanaly","nowosci","ustawienia"];
+  for (i = 0; i < tabs.length; i++) {
+    document.getElementById("tab-" + tabs[i]).className = "tab" + (tab === tabs[i] ? " active" : "");
+  }
+
+  if (tab === "kanaly") el.innerHTML = renderChannels();
+  else if (tab === "nowosci") el.innerHTML = renderVideos();
+  else el.innerHTML = renderSettings();
+}
+
+function catById(id) {
+  for (var i = 0; i < S.categories.length; i++) if (S.categories[i].id === id) return S.categories[i];
+  return null;
+}
+
+function renderChannels() {
+  var h = '<div class="chips">';
+  h += '<button class="chip" data-act="cat" data-id="all" style="' +
+    (activeCat === "all" ? "color:#8B94A3;border-color:#8B94A3;background:rgba(139,148,163,.13)" : "") + '">Wszystkie</button>';
+  var i, c;
+  for (i = 0; i < S.categories.length; i++) {
+    c = S.categories[i];
+    h += '<button class="chip" data-act="cat" data-id="' + c.id + '" style="' +
+      (activeCat === c.id ? "color:" + c.color + ";border-color:" + c.color + ";background:" + c.color + "22" : "") +
+      '">' + esc(c.name) + "</button>";
+  }
+  h += '<button class="chip" data-act="addcat">+ kategoria</button></div>';
+
+  if (showAdd) {
+    h += '<div class="form">' +
+      '<input id="f-name" placeholder="Link do kanału, @handle lub nazwa">' +
+      '<select id="f-cat">';
+    for (i = 0; i < S.categories.length; i++)
+      h += '<option value="' + S.categories[i].id + '">' + esc(S.categories[i].name) + "</option>";
+    h += "</select>" +
+      '<div class="row">' +
+      '<button class="btnp" data-act="saveChannel">Dodaj kanał</button>' +
+      '<button class="btn2" data-act="cancelAdd">Anuluj</button>' +
+      "</div>" +
+      '<p class="hint">Najpewniej działa link do kanału lub @handle (np. youtube.com/@NazwaKanalu). Aplikacja sama znajdzie ID kanału.</p>' +
+      "</div>";
+  } else {
+    h += '<button class="addbtn" data-act="showAdd">+ Dodaj kanał</button>';
+  }
+
+  var list = [];
+  for (i = 0; i < S.channels.length; i++) {
+    if (activeCat === "all" || S.channels[i].categoryId === activeCat) list.push(S.channels[i]);
+  }
+  if (list.length === 0) {
+    h += '<p class="empty">' + (S.channels.length === 0 ?
+      "Dodaj pierwszy kanał — wklej link albo @handle." : "Brak kanałów w tej kategorii.") + "</p>";
+  }
+  for (i = 0; i < list.length; i++) {
+    var ch = list[i], cat = catById(ch.categoryId);
+    h += '<div class="card">' +
+      '<span class="bar" style="background:' + (cat ? cat.color : "#8B94A3") + '"></span>' +
+      '<div class="grow"><div class="chname">' + esc(ch.name) + "</div>" +
+      '<div class="chmeta">' + (cat ? esc(cat.name) : "") + " · " + esc(ch.channelId) + "</div></div>" +
+      '<button class="bell' + (ch.notify ? " on" : "") + '" data-act="bell" data-id="' + ch.id + '">' + (ch.notify ? "🔔" : "🔕") + "</button>" +
+      '<button class="x" data-act="delChannel" data-id="' + ch.id + '">✕</button>' +
+      "</div>";
+  }
+  return h;
+}
+
+function renderVideos() {
+  var h = '<div class="pastebox">' +
+    '<input id="f-paste" placeholder="Wklej link do dowolnego filmu z YT" inputmode="url">' +
+    '<button class="small" data-act="pasteSum">Streść</button>' +
+    "</div>";
+  if (S.lastCheck) h += '<p class="mono">Ostatnie sprawdzenie: ' + new Date(S.lastCheck).toLocaleString("pl-PL") + "</p>";
+  h += '<div class="langbar">' +
+    '<button class="langbtn' + (S.langMode === "pl" || !S.langMode ? " active" : "") + '" data-act="lang" data-id="pl">PL</button>' +
+    '<button class="langbtn' + (S.langMode === "en" ? " active" : "") + '" data-act="lang" data-id="en">EN</button>' +
+    '<button class="langbtn' + (S.langMode === "nauka" ? " active" : "") + '" data-act="lang" data-id="nauka">🎓 Nauka</button>' +
+    "</div>";
+  if (S.videos.length === 0)
+    return h + '<p class="empty">Kliknij „Sprawdź nowości", żeby pobrać najnowsze filmy z kanałów z 🔔 — albo wklej wyżej link do dowolnego filmu.</p>';
+  for (var i = 0; i < S.videos.length; i++) {
+    var v = S.videos[i];
+    h += '<div class="vcard">' +
+      '<button class="x" style="float:right" data-act="delVideo" data-id="' + v.id + '">✕</button>' +
+      '<button class="fold" style="float:right; margin-right:6px" data-act="fold" data-id="' + v.id + '">' + (v.collapsed ? "▸" : "▾") + "</button>" +
+      '<div class="vhead">' +
+      '<img class="thumb" loading="lazy" alt="" src="https://i.ytimg.com/vi/' + esc(v.videoId) + '/mqdefault.jpg">' +
+      '<div class="grow">' +
+      '<div class="vch">' + esc(v.channel) + (v.date ? " · " + esc(v.date) : "") + "</div>" +
+      '<div class="vtitle">' + esc(v.title) + "</div>" +
+      "</div></div>";
+    if (v.summary && v.collapsed) {
+      // zwinięte: sam nagłówek, streszczenie schowane ale nie skasowane
+    } else if (v.summary) {
+      var bilingual = typeof v.summary[0] === "object";
+      h += '<div class="digest">';
+      if (v.verdict) {
+        var ok = v.verdict === "OBEJRZYJ";
+        h += '<div class="verdict" style="color:' + (ok ? "var(--green)" : "var(--muted)") + '">' +
+          (ok ? "▶ WARTO OBEJRZEĆ W CAŁOŚCI" : "✓ WYSTARCZY TEN SKRÓT") + "</div>";
+      }
+      h += "<ul>";
+      for (var j = 0; j < v.summary.length; j++) {
+        var p = v.summary[j];
+        var liId = ' id="li-' + v.id + "-" + j + '"';
+        var digBtn = '<button class="dig" data-act="dig" data-id="' + v.id + '" data-idx="' + j + '" title="Pogłęb ten wątek">🔍</button>';
+        if (typeof p === "string") {
+          // stare streszczenia (tylko PL)
+          h += "<li" + liId + ">" + esc(p) + digBtn + "</li>";
+        } else if (S.langMode === "en") {
+          h += '<li lang="en"' + liId + ">" + wrapWords(p.en, p.words, v.id, j) + digBtn + "</li>";
+        } else if (S.langMode === "nauka") {
+          h += '<li lang="en"' + liId + ">" + wrapWords(p.en, p.words, v.id, j) + digBtn +
+            '<div class="pl-sub" id="pl-' + v.id + "-" + j + '">' + esc(p.pl) + "</div></li>";
+        } else {
+          h += "<li" + liId + ">" + esc(p.pl) + digBtn + "</li>";
+        }
+      }
+      h += "</ul>";
+
+      // ——— encje: osoby, spółki, tickery, pojęcia ———
+      if (v.entities && v.entities.length) {
+        h += '<div class="ents">';
+        for (var e = 0; e < v.entities.length; e++) {
+          var en2 = v.entities[e];
+          h += '<button class="ent" data-act="digent" data-id="' + v.id + '" data-idx="' + e + '">' +
+            esc(en2.name) + '<span class="t">' + esc(en2.type || "") + "</span></button>";
+        }
+        h += "</div>";
+      }
+
+      // ——— wynik pogłębiania ———
+      if (v.deep) {
+        if (v.deep.loading) {
+          h += '<div class="dd"><h4>⏳ Szukam w internecie…</h4>' +
+            '<p class="hint" style="margin:0">' + esc(v.deep.topic) + "</p></div>";
+        } else if (v.deep.error) {
+          h += '<div class="dd" style="border-left-color:var(--red)">' +
+            '<button class="close" data-act="closedig" data-id="' + v.id + '">✕</button>' +
+            "<h4>Nie udało się pogłębić</h4><p class=\"hint\" style=\"margin:0\">" + esc(v.deep.error) + "</p></div>";
+        } else {
+          h += '<div class="dd">' +
+            '<button class="close" data-act="closedig" data-id="' + v.id + '">✕</button>' +
+            "<h4>" + esc(v.deep.title) + "</h4>";
+          for (var s = 0; s < (v.deep.sections || []).length; s++) {
+            h += '<div class="sec"><b>' + esc(v.deep.sections[s].h) + "</b><p>" +
+              esc(v.deep.sections[s].body) + "</p></div>";
+          }
+          if (v.deep.sources && v.deep.sources.length) {
+            h += '<div class="src">';
+            for (var so = 0; so < v.deep.sources.length; so++) {
+              var srcU = v.deep.sources[so].url || "";
+              if (srcU.indexOf("http") !== 0) continue;
+              h += '<a href="' + esc(srcU) + '" target="_blank" rel="noreferrer">↗ ' +
+                esc(v.deep.sources[so].title || srcU) + "</a>";
+            }
+            h += "</div>";
+          }
+          h += "</div>";
+        }
+      }
+      h += "</div>";
+      var speakingThis = TTS.videoId === v.id;
+      function ttsLabel(lg, icon) {
+        if (speakingThis && TTS.lang === lg) return TTS.loading ? "⏳ Ładuję…" : "⏹ Stop";
+        return icon;
+      }
+      h += '<div class="vactions">' +
+        '<button class="tts' + (speakingThis && TTS.lang === "pl" ? " playing" : "") + '" data-act="say" data-id="' + v.id + '" data-lang="pl">' +
+        ttsLabel("pl", "🔊 PL") + "</button>" +
+        (bilingual
+          ? '<button class="tts' + (speakingThis && TTS.lang === "en" ? " playing" : "") + '" data-act="say" data-id="' + v.id + '" data-lang="en">' +
+            ttsLabel("en", "🔊 EN") + "</button>"
+          : "") +
+        '<a class="link" target="_blank" rel="noreferrer" href="https://www.youtube.com/watch?v=' + esc(v.videoId) + '">Otwórz w YT ↗</a>' +
+        "</div>";
+    } else {
+      h += '<div class="vactions">' +
+        '<button class="small" data-act="sum" data-id="' + v.id + '"' + (busy[v.id] ? " disabled" : "") + ">" +
+        (busy[v.id] ? "Streszczam…" : "Skrót + streszczenie") + "</button>" +
+        '<a class="link" target="_blank" rel="noreferrer" href="https://www.youtube.com/watch?v=' + esc(v.videoId) + '">Otwórz w YT ↗</a>' +
+        "</div>";
+    }
+    h += "</div>";
+  }
+  return h;
+}
+
+function renderSettings() {
+  var h = '<div class="form">' +
+    '<p class="hint" style="margin:0 0 8px">Adres Twojego Cloudflare Workera (np. https://ytdigest.twojanazwa.workers.dev)</p>' +
+    '<input id="f-worker" placeholder="https://...workers.dev" value="' + esc(S.workerUrl) + '">' +
+    '<button class="btnp" data-act="saveWorker">Zapisz</button>' +
+    '<p class="hint">Worker odpowiada za: znajdowanie ID kanału, sprawdzanie nowych filmów (RSS) i generowanie streszczeń z transkrypcji przez API Anthropic.</p>' +
+    "</div>";
+
+  // ——— lektor ———
+  var engines = [["openai", "Naturalny (OpenAI)"], ["system", "Systemowy (darmowy)"]];
+  h += '<div class="form">' +
+    '<p class="hint" style="margin:0 0 8px"><b>Lektor</b></p>' +
+    '<div class="langbar" style="margin-bottom:10px">';
+  for (var E = 0; E < engines.length; E++) {
+    var cur = (S.ttsEngine || "openai") === engines[E][0];
+    h += '<button class="langbtn' + (cur ? " active" : "") + '" data-act="engine" data-id="' + engines[E][0] + '">' +
+      engines[E][1] + "</button>";
+  }
+  h += "</div>";
+
+  if ((S.ttsEngine || "openai") === "openai") {
+    var voices = [
+      ["nova", "Nova — ciepły kobiecy"],
+      ["shimmer", "Shimmer — łagodny kobiecy"],
+      ["alloy", "Alloy — neutralny"],
+      ["echo", "Echo — spokojny męski"],
+      ["onyx", "Onyx — głęboki męski"],
+      ["fable", "Fable — narracyjny"],
+    ];
+    h += "<select id=\"oa-voice\">";
+    for (var V = 0; V < voices.length; V++) {
+      var s2 = (S.ttsVoice || "nova") === voices[V][0] ? " selected" : "";
+      h += '<option value="' + voices[V][0] + '"' + s2 + ">" + esc(voices[V][1]) + "</option>";
+    }
+    h += "</select>" +
+      '<div class="row" style="margin-bottom:6px">' +
+      '<button class="small" data-act="saveOaVoice">Zapisz</button>' +
+      '<button class="btn2" data-act="testOaVoice">▶ Test</button>' +
+      "</div>" +
+      '<p class="hint">Wymaga sekretu OPENAI_API_KEY w Workerze. Koszt ok. 15–20 gr za przeczytanie jednego streszczenia.</p>';
+  } else {
+    h += '<p class="hint">Głos wbudowany w telefon — darmowy, ale na iPhone brzmi robotycznie (Safari udostępnia tylko archaiczne głosy Apple).</p>';
+  }
+  h += "</div>";
+  return h;
+}
+
+// ================= AKCJE =================
+async function addChannel() {
+  var input = document.getElementById("f-name").value.trim();
+  var catId = document.getElementById("f-cat").value;
+  if (!input) return;
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); return; }
+  showErr(null);
+  try {
+    var res = await fetch(workerUrl() + "/resolve?q=" + encodeURIComponent(input));
+    var data = await res.json();
+    if (!res.ok || !data.channelId) throw new Error(data.error || "Nie znaleziono kanału");
+    S.channels.push({
+      id: uid(),
+      name: data.title || input.replace(/^.*@/, "@"),
+      channelId: data.channelId,
+      categoryId: catId,
+      notify: true
+    });
+    showAdd = false;
+    save(); render();
+  } catch (e) {
+    showErr("Nie udało się dodać kanału: " + e.message);
+  }
+}
+
+async function checkNew() {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); tab = "ustawienia"; render(); return; }
+  var watched = [];
+  for (var i = 0; i < S.channels.length; i++) if (S.channels[i].notify) watched.push(S.channels[i]);
+  if (watched.length === 0) { showErr("Włącz dzwonek przy przynajmniej jednym kanale."); return; }
+
+  showErr(null);
+  var btn = document.getElementById("checkBtn");
+  btn.disabled = true; btn.textContent = "Sprawdzam…";
+
+  var existing = {};
+  for (i = 0; i < S.videos.length; i++) existing[S.videos[i].videoId] = true;
+  var fresh = [];
+  var cutoff = Date.now() - 14 * 24 * 3600 * 1000; // ostatnie 14 dni
+
+  for (i = 0; i < watched.length; i++) {
+    try {
+      var res = await fetch(workerUrl() + "/feed?channelId=" + encodeURIComponent(watched[i].channelId));
+      var data = await res.json();
+      if (!res.ok) continue;
+      for (var j = 0; j < (data.videos || []).length; j++) {
+        var v = data.videos[j];
+        if (existing[v.videoId]) continue;
+        if (v.published && new Date(v.published).getTime() < cutoff) continue;
+        fresh.push({
+          id: uid(), videoId: v.videoId, channel: watched[i].name,
+          title: v.title, date: v.published, summary: null, verdict: null
+        });
+      }
+    } catch (e) { /* pojedynczy kanał może zawieść — idziemy dalej */ }
+  }
+
+  fresh.sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+  S.videos = fresh.concat(S.videos).slice(0, 80);
+  S.lastCheck = new Date().toISOString();
+  save();
+  btn.disabled = false; btn.textContent = "Sprawdź nowości";
+  tab = "nowosci";
+  render();
+}
+
+function normKey(w) {
+  return String(w || "").toLowerCase().replace(/[^a-z0-9'-]/g, "");
+}
+
+// otacza każde słowo wersji EN spanem; słowa ze słowniczka dostają klasę .hit
+function wrapWords(en, words, vidId, idx) {
+  var tokens = String(en || "").split(" ");
+  var out = [];
+  for (var i = 0; i < tokens.length; i++) {
+    var key = normKey(tokens[i]);
+    var hit = words && Object.prototype.hasOwnProperty.call(words, key);
+    out.push(
+      '<span class="w' + (hit ? " hit" : "") + '" data-vid="' + vidId + '" data-idx="' + idx +
+      '" data-key="' + esc(key) + '">' + esc(tokens[i]) + "</span>"
+    );
+  }
+  return out.join(" ");
+}
+
+function extractVideoId(input) {
+  input = (input || "").trim();
+  var m =
+    input.match(/[?&]v=([0-9A-Za-z_-]{11})/) ||
+    input.match(/youtu\.be\/([0-9A-Za-z_-]{11})/) ||
+    input.match(/shorts\/([0-9A-Za-z_-]{11})/) ||
+    input.match(/live\/([0-9A-Za-z_-]{11})/) ||
+    input.match(/^([0-9A-Za-z_-]{11})$/);
+  return m ? m[1] : null;
+}
+
+async function pasteSummarize() {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); tab = "ustawienia"; render(); return; }
+  var input = document.getElementById("f-paste").value;
+  var vid = extractVideoId(input);
+  if (!vid) { showErr("Nie rozpoznaję linku — wklej pełny link do filmu z YouTube."); return; }
+  showErr(null);
+  // jeśli film już jest na liście, tylko go streszczamy
+  var existing = null, i;
+  for (i = 0; i < S.videos.length; i++) if (S.videos[i].videoId === vid) existing = S.videos[i];
+  if (!existing) {
+    existing = { id: uid(), videoId: vid, channel: "Wklejony link", title: "Film " + vid, date: "", summary: null, verdict: null };
+    S.videos.unshift(existing);
+    save();
+  }
+  render();
+  await summarize(existing.id);
+}
+
+async function summarize(id) {
+  var v = null, i;
+  for (i = 0; i < S.videos.length; i++) if (S.videos[i].id === id) v = S.videos[i];
+  if (!v) return;
+  busy[id] = true; render();
+  try {
+    var res = await fetch(workerUrl() + "/summary?videoId=" + encodeURIComponent(v.videoId));
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Błąd streszczenia");
+    v.summary = data.summary;
+    v.verdict = data.verdict;
+    v.entities = data.entities || [];
+    if (data.title && v.title.indexOf("Film ") === 0) v.title = data.title;
+    if (data.author && v.channel === "Wklejony link") v.channel = data.author;
+    save();
+  } catch (e) {
+    showErr("Streszczenie nie powiodło się: " + e.message);
+  }
+  busy[id] = false;
+  render();
+}
+
+// ================= ZDARZENIA =================
+document.addEventListener("click", function (ev) {
+  var t = ev.target.closest("[data-act]");
+  if (!t) return;
+  var act = t.getAttribute("data-act");
+  var id = t.getAttribute("data-id");
+  var i;
+
+  if (act === "tab") { tab = t.getAttribute("data-tab"); showErr(null); render(); }
+  else if (act === "check") { checkNew(); }
+  else if (act === "cat") { activeCat = id; render(); }
+  else if (act === "addcat") {
+    var name = prompt("Nazwa nowej kategorii:");
+    if (name && name.trim()) {
+      S.categories.push({ id: uid(), name: name.trim(), color: CAT_COLORS[S.categories.length % CAT_COLORS.length] });
+      save(); render();
+    }
+  }
+  else if (act === "showAdd") { showAdd = true; render(); }
+  else if (act === "cancelAdd") { showAdd = false; render(); }
+  else if (act === "saveChannel") { addChannel(); }
+  else if (act === "bell") {
+    for (i = 0; i < S.channels.length; i++)
+      if (S.channels[i].id === id) S.channels[i].notify = !S.channels[i].notify;
+    save(); render();
+  }
+  else if (act === "delChannel") {
+    for (i = S.channels.length - 1; i >= 0; i--)
+      if (S.channels[i].id === id) S.channels.splice(i, 1);
+    save(); render();
+  }
+  else if (act === "delVideo") {
+    for (i = S.videos.length - 1; i >= 0; i--)
+      if (S.videos[i].id === id) S.videos.splice(i, 1);
+    save(); render();
+  }
+  else if (act === "sum") { summarize(id); }
+  else if (act === "pasteSum") { pasteSummarize(); }
+  else if (act === "lang") { S.langMode = id; save(); render(); }
+  else if (act === "fold") {
+    var fv = findVideo(id);
+    if (fv) { fv.collapsed = !fv.collapsed; save(); render(); }
+  }
+  else if (act === "say") { speakVideo(id, t.getAttribute("data-lang")); }
+  else if (act === "dig") {
+    var dv = findVideo(id);
+    var di = parseInt(t.getAttribute("data-idx"), 10);
+    if (dv && dv.summary && dv.summary[di]) {
+      var pt = dv.summary[di];
+      var topicTxt = typeof pt === "string" ? pt : pt.pl;
+      // kontekst: sąsiednie punkty, żeby model wiedział o czym był film
+      var ctx = [];
+      for (i = 0; i < dv.summary.length && ctx.length < 4; i++) {
+        if (i === di) continue;
+        var cp = dv.summary[i];
+        ctx.push(typeof cp === "string" ? cp : cp.pl);
+      }
+      digDeeper(id, topicTxt, ctx.join(" "), "point");
+    }
+  }
+  else if (act === "digent") {
+    var ev2 = findVideo(id);
+    var ei = parseInt(t.getAttribute("data-idx"), 10);
+    if (ev2 && ev2.entities && ev2.entities[ei]) {
+      var ent = ev2.entities[ei];
+      digDeeper(id, ent.name, ent.note || "", "entity");
+    }
+  }
+  else if (act === "closedig") {
+    var cv = findVideo(id);
+    if (cv) { delete cv.deep; save(); render(); }
+  }
+  else if (act === "engine") { S.ttsEngine = id; save(); render(); }
+  else if (act === "saveOaVoice") {
+    S.ttsVoice = document.getElementById("oa-voice").value;
+    save(); showErr(null); render();
+  }
+  else if (act === "testOaVoice") { testOaVoice(); }
+  else if (act === "saveWorker") {
+    S.workerUrl = document.getElementById("f-worker").value.trim();
+    save(); showErr(null); tab = "kanaly"; render();
+  }
+});
+
+// ================= LEKTOR (syntezator mowy w telefonie) =================
+var TTS = { videoId: null, lang: null, audio: null, loading: false };
+
+function stopSpeak() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  if (TTS.audio) {
+    try { TTS.audio.pause(); TTS.audio.currentTime = 0; } catch (e) {}
+    TTS.audio = null;
+  }
+  var el = document.querySelector(".digest li.speaking");
+  if (el) el.classList.remove("speaking");
+  TTS.videoId = null;
+  TTS.lang = null;
+  TTS.loading = false;
+}
+
+// wybiera najlepszy dostępny głos dla danego języka:
+// premium/enhanced/natural/neural > zwykłe głosy sieciowe (Google) > lokalne domyślne > "Compact" (najbardziej robotyczny)
+function pickBestVoice(voices, langPrefix) {
+  // 1) głos wybrany ręcznie przez użytkownika w ⚙
+  if (S.voice && S.voice[langPrefix]) {
+    for (var q = 0; q < voices.length; q++) {
+      if (voices[q].name === S.voice[langPrefix]) return voices[q];
+    }
+  }
+  var candidates = [];
+  for (var i = 0; i < voices.length; i++) {
+    if (voices[i].lang && voices[i].lang.toLowerCase().indexOf(langPrefix) === 0) candidates.push(voices[i]);
+  }
+  if (candidates.length === 0) return null;
+
+  function score(v) {
+    var name = (v.name || "").toLowerCase();
+    var s = 0;
+    if (name.indexOf("premium") !== -1) s += 100;
+    if (name.indexOf("enhanced") !== -1) s += 90;
+    if (name.indexOf("neural") !== -1) s += 90;
+    if (name.indexOf("natural") !== -1) s += 85;
+    if (name.indexOf("siri") !== -1) s += 70;
+    if (name.indexOf("google") !== -1) s += 50;
+    if (name.indexOf("compact") !== -1) s -= 100;
+    if (name.indexOf("eloquence") !== -1) s -= 100;
+    if (v.localService === false) s += 5; // głosy sieciowe bywają lepszej jakości
+    return s;
+  }
+
+  candidates.sort(function (a, b) { return score(b) - score(a); });
+  return candidates[0];
+}
+
+function speakVideo(id, lang) {
+  // kliknięcie w grający przycisk = stop
+  if (TTS.videoId === id && TTS.lang === lang) { stopSpeak(); render(); return; }
+  stopSpeak();
+
+  var v = findVideo(id);
+  if (!v || !v.summary) return;
+
+  if (S.ttsEngine === "system") { speakSystem(v, id, lang); return; }
+  speakOpenAI(v, id, lang);
+}
+
+// ——— lektor OpenAI (naturalny głos) ———
+async function speakOpenAI(v, id, lang) {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); return; }
+  TTS.videoId = id;
+  TTS.lang = lang;
+  TTS.loading = true;
+  render();
+
+  // sklej punkty w jeden tekst (jedno zapytanie = jedna opłata)
+  var parts = [];
+  for (var j = 0; j < v.summary.length; j++) {
+    var p = v.summary[j];
+    var t = typeof p === "string" ? p : (lang === "en" ? p.en : p.pl);
+    if (t) parts.push(t);
+  }
+  var text = parts.join(". ");
+  if (!text) { stopSpeak(); render(); return; }
+
+  try {
+    var res = await fetch(workerUrl() + "/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text, voice: S.ttsVoice || "nova" }),
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || "błąd serwera");
+    }
+    var blob = await res.blob();
+    if (TTS.videoId !== id) return; // użytkownik w międzyczasie kliknął stop
+    var audio = new Audio(URL.createObjectURL(blob));
+    TTS.audio = audio;
+    TTS.loading = false;
+    audio.onended = function () { stopSpeak(); render(); };
+    audio.onerror = function () { showErr("Nie udało się odtworzyć audio."); stopSpeak(); render(); };
+    await audio.play();
+    render();
+  } catch (e) {
+    showErr("Lektor nie zadziałał: " + e.message + " — sprawdź OPENAI_API_KEY w Workerze.");
+    stopSpeak();
+    render();
+  }
+}
+
+// ——— lektor systemowy (zapasowy, darmowy) ———
+function speakSystem(v, id, lang) {
+  if (!window.speechSynthesis) { showErr("Twoja przeglądarka nie obsługuje czytania na głos."); return; }
+  TTS.videoId = id;
+  TTS.lang = lang;
+
+  var voices = window.speechSynthesis.getVoices();
+  var wanted = lang === "en" ? "en" : "pl";
+  var voice = pickBestVoice(voices, wanted);
+
+  var queued = 0;
+  for (var j = 0; j < v.summary.length; j++) {
+    var p = v.summary[j];
+    var textToSay = typeof p === "string" ? p : (lang === "en" ? p.en : p.pl);
+    if (!textToSay) continue;
+    var utt = new SpeechSynthesisUtterance(textToSay);
+    utt.lang = lang === "en" ? "en-US" : "pl-PL";
+    if (voice) utt.voice = voice;
+    utt.rate = 0.97;
+    utt.pitch = 1.0;
+    (function (idx, isLast) {
+      utt.onstart = function () {
+        var prev = document.querySelector(".digest li.speaking");
+        if (prev) prev.classList.remove("speaking");
+        var el = document.getElementById("li-" + id + "-" + idx);
+        if (el) { el.classList.add("speaking"); el.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+      };
+      utt.onend = function () {
+        var el = document.getElementById("li-" + id + "-" + idx);
+        if (el) el.classList.remove("speaking");
+        if (isLast && TTS.videoId === id) { TTS.videoId = null; TTS.lang = null; render(); }
+      };
+    })(j, j === v.summary.length - 1);
+    window.speechSynthesis.speak(utt);
+    queued++;
+  }
+  if (queued === 0) { stopSpeak(); return; }
+  render();
+}
+
+async function testOaVoice() {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera."); return; }
+  var voice = document.getElementById("oa-voice").value;
+  showErr(null);
+  try {
+    var res = await fetch(workerUrl() + "/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: "Test głosu. Bitcoin wzrósł o dwanaście procent w tym tygodniu. Voice test in English as well.",
+        voice: voice,
+      }),
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || "błąd serwera");
+    }
+    var blob = await res.blob();
+    new Audio(URL.createObjectURL(blob)).play();
+  } catch (e) {
+    showErr("Test nie zadziałał: " + e.message);
+  }
+}
+
+// ================= POGŁĘBIANIE TEMATU =================
+async function digDeeper(videoId, topic, context, kind) {
+  if (!workerUrl()) { showErr("Najpierw ustaw adres Workera w ⚙."); return; }
+  var v = findVideo(videoId);
+  if (!v) return;
+  showErr(null);
+  v.deep = { loading: true, topic: topic };
+  render();
+
+  try {
+    var res = await fetch(workerUrl() + "/deepdive", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: topic,
+        context: context || "",
+        videoTitle: v.title || "",
+        kind: kind || "point",
+      }),
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || "błąd serwera");
+    v.deep = {
+      title: data.title || topic,
+      sections: data.sections || [],
+      sources: data.sources || [],
+      topic: topic,
+    };
+  } catch (e) {
+    v.deep = { error: e.message, topic: topic };
+  }
+  save();
+  render();
+}
+
+// ================= SŁOWNICZEK (dymek) =================
+var tipEl = document.createElement("div");
+tipEl.id = "tip";
+document.body.appendChild(tipEl);
+
+function findVideo(id) {
+  for (var i = 0; i < S.videos.length; i++) if (S.videos[i].id === id) return S.videos[i];
+  return null;
+}
+
+function showTip(target) {
+  var key = target.getAttribute("data-key");
+  var vid = target.getAttribute("data-vid");
+  var idx = parseInt(target.getAttribute("data-idx"), 10);
+  var v = findVideo(vid);
+  var point = v && v.summary && v.summary[idx];
+  var words = point && point.words;
+
+  if (words && Object.prototype.hasOwnProperty.call(words, key)) {
+    tipEl.innerHTML = "<b>" + esc(target.textContent) + "</b> — " + esc(words[key]);
+    tipEl.style.display = "block";
+    var r = target.getBoundingClientRect();
+    var top = r.top - tipEl.offsetHeight - 8;
+    if (top < 8) top = r.bottom + 8;
+    var left = r.left;
+    if (left + tipEl.offsetWidth > window.innerWidth - 8) left = window.innerWidth - tipEl.offsetWidth - 8;
+    tipEl.style.top = top + "px";
+    tipEl.style.left = left + "px";
+  } else {
+    // słowo spoza słowniczka: podświetl polski odpowiednik zdania (tryb Nauka)
+    hideTip();
+    var sub = document.getElementById("pl-" + vid + "-" + idx);
+    if (sub) {
+      sub.classList.add("flash");
+      setTimeout(function () { sub.classList.remove("flash"); }, 1200);
+    }
+  }
+}
+
+function hideTip() { tipEl.style.display = "none"; }
+
+document.addEventListener("mouseover", function (ev) {
+  var t = ev.target.closest ? ev.target.closest(".w.hit") : null;
+  if (t) showTip(t);
+});
+document.addEventListener("mouseout", function (ev) {
+  if (ev.target.closest && ev.target.closest(".w")) hideTip();
+});
+// tap na telefonie (click działa też dla słów bez podkreślenia — podświetla polskie zdanie)
+document.addEventListener("click", function (ev) {
+  var t = ev.target.closest ? ev.target.closest(".w") : null;
+  if (t) { showTip(t); ev.stopPropagation(); }
+  else hideTip();
+}, true);
+
+// iOS/Chrome ładują listę głosów asynchronicznie — odśwież widok gdy będą gotowe
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = function () {
+    if (tab === "ustawienia") render();
+  };
+  window.speechSynthesis.getVoices();
+}
+
+render();
+if (!S.workerUrl) { tab = "ustawienia"; render(); }
+</script>
+</body>
+</html>
